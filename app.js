@@ -485,6 +485,27 @@ function renderMath(puzzle) {
   return container;
 }
 
+function fitFullscreenMathGrid() {
+  if (!document.body.classList.contains('focus-mode') || state.puzzle?.kind !== 'math') return;
+  const content = $('#puzzle-content');
+  const wrapper = content.querySelector('.grid-wrap');
+  const table = wrapper?.querySelector('.arithmetic-grid');
+  const note = content.querySelector('.equation-notes');
+  if (!content.clientWidth || !content.clientHeight || !table) return;
+
+  table.style.setProperty('--grid-scale', '1');
+  const availableWidth = content.clientWidth - 8;
+  const availableHeight = content.clientHeight - (note?.offsetHeight || 0) - 24;
+  const widthScale = availableWidth / table.offsetWidth;
+  const heightScale = availableHeight / table.offsetHeight;
+  const scale = Math.min(1, widthScale, heightScale);
+  table.style.setProperty('--grid-scale', String(Math.max(0.35, scale)));
+}
+
+function scheduleFullscreenMathGridFit() {
+  window.requestAnimationFrame(fitFullscreenMathGrid);
+}
+
 function renderWords(puzzle) {
   const layout = document.createElement('div');
   layout.className = 'word-layout';
@@ -550,6 +571,7 @@ function renderPuzzle() {
   if (!puzzle) return;
   const content = $('#puzzle-content');
   content.replaceChildren(puzzle.kind === 'math' ? renderMath(puzzle) : renderWords(puzzle));
+  scheduleFullscreenMathGridFit();
   $('#puzzle-title').textContent = t(puzzle.kind === 'math' ? 'mathTitle' : 'wordTitle');
   $('#meta-summary').textContent = puzzle.kind === 'math'
     ? t('mathMeta', { max: puzzle.max, count: puzzle.expressions.length, requested: puzzle.expressions.length < puzzle.requestedCount ? t('requestedMeta', { count: puzzle.requestedCount }) : '' })
@@ -918,6 +940,7 @@ function setFocusMode(enabled) {
   const label = t(enabled ? 'exitFullscreen' : 'enterFullscreen');
   focusModeButton.title = label;
   focusModeButton.setAttribute('aria-label', label);
+  scheduleFullscreenMathGridFit();
 }
 focusModeButton.addEventListener('click', async () => {
   const enabled = !document.body.classList.contains('focus-mode');
@@ -930,7 +953,9 @@ focusModeButton.addEventListener('click', async () => {
 });
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement && document.body.classList.contains('focus-mode')) setFocusMode(false);
+  else scheduleFullscreenMathGridFit();
 });
+window.addEventListener('resize', scheduleFullscreenMathGridFit);
 document.querySelectorAll('[data-print]').forEach((button) => button.addEventListener('click', () => {
   $('#print-menu').classList.add('hidden');
   printPuzzle(button.dataset.print);

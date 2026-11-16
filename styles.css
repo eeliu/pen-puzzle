@@ -24,7 +24,12 @@ body.focus-mode .shell{width:100%;max-width:none;height:100vh;margin:0;padding:0
 body.focus-mode .workspace{display:block;height:100%}
 body.focus-mode .puzzle-panel{height:100%;min-height:0;border:0;border-radius:0;padding:clamp(12px,2.5vw,30px) clamp(12px,3vw,38px) 14px;box-shadow:none}
 body.focus-mode .puzzle-content{min-height:0}
-body.focus-mode .grid-wrap{max-height:min(72vh,680px)}
+body.focus-mode .grid-wrap{max-height:none;overflow:visible}
+body.focus-mode .arithmetic-grid{--grid-scale:1;--grid-cell-size:33px}
+body.focus-mode .arithmetic-grid td{width:calc(var(--grid-cell-size)*var(--grid-scale));height:calc(var(--grid-cell-size)*var(--grid-scale));font-size:calc(13px*var(--grid-scale))}
+body.focus-mode .arithmetic-grid td.operator-cell{font-size:calc(12px*var(--grid-scale))}
+body.focus-mode .arithmetic-grid input{font-size:calc(13px*var(--grid-scale))}
+body.focus-mode .answer-number{font-size:calc(7px*var(--grid-scale))}
 .focus-mode-button svg{display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round}
 body.focus-mode .focus-mode-button{color:var(--green);border-color:#d5e0d0;background:#eef3eb}
-@media(max-width:760px){body.focus-mode .shell{padding:0}body.focus-mode .puzzle-panel{padding:12px 12px 10px}body.focus-mode .puzzle-content{padding:8px 0}body.focus-mode .grid-wrap{max-height:72vh}body.focus-mode .puzzle-footer{padding-top:8px}}
+@media(max-width:760px){body.focus-mode .shell{padding:0}body.focus-mode .puzzle-panel{padding:12px 12px 10px}body.focus-mode .puzzle-content{padding:8px 0}body.focus-mode .arithmetic-grid{--grid-cell-size:29px}body.focus-mode .puzzle-footer{padding-top:8px}}
