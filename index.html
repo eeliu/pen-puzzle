@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f4ef" />
+    <meta name="description" content="生成、解答和打印算术与单词交叉谜题。" />
+    <title>Pen &amp; Puzzle — 纸笔谜题工坊</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Pen and Puzzle 首页"><span class="brand-mark">P</span><span>pen<span class="brand-amp">&amp;</span>puzzle</span></a>
+      <div class="topbar-note"><span class="status-dot"></span>无需注册 · 直接在浏览器中使用</div>
+    </header>
+
+    <main class="shell">
+      <section class="intro">
+        <div class="eyebrow">YOUR DAILY BRAIN STRETCH</div>
+        <h1>给好奇心，<span>留一张纸。</span></h1>
+        <p>生成一份专属谜题，在线解答，或打印出来慢慢享受。</p>
+      </section>
+
+      <div class="workspace">
+        <aside class="panel controls" aria-label="谜题设置">
+          <div class="mode-switch" role="tablist" aria-label="谜题类型">
+            <button class="mode-button active" data-mode="math" role="tab" aria-selected="true">＋ 算术谜题</button>
+            <button class="mode-button" data-mode="words" role="tab" aria-selected="false">Aa 单词谜题</button>
+          </div>
+
+          <section class="settings-section" id="math-settings">
+            <div class="section-heading"><h2>算术设置</h2><span class="section-step">01</span></div>
+            <label class="field-label" for="range">数字范围 <span>操作数和结果</span></label>
+            <div class="range-row"><select id="range"><option value="10">0 — 10</option><option value="20">0 — 20</option><option value="50">0 — 50</option><option value="100">0 — 100</option></select><label class="custom-range"><span>或自定义</span><input id="custom-range" type="number" min="3" max="500" placeholder="N" aria-label="自定义最大数字" /></label></div>
+            <fieldset class="operator-field"><legend>运算符 <span>至少选择一个</span></legend><div class="operator-options"><label><input type="checkbox" value="+" checked /><span>＋</span></label><label><input type="checkbox" value="−" checked /><span>−</span></label><label><input type="checkbox" value="×" checked /><span>×</span></label><label><input type="checkbox" value="÷" checked /><span>÷</span></label></div></fieldset>
+            <label class="field-label" for="difficulty">难度 <span>空格数量影响挑战性</span></label>
+            <select id="difficulty"><option value="easy">轻松 · 约 25% 留空</option><option value="normal" selected>适中 · 约 40% 留空</option><option value="hard">挑战 · 约 55% 留空</option></select>
+            <label class="field-label" for="equation-count">谜题规模 <span>表达式条数</span></label>
+            <select id="equation-count"><option value="4">小型 · 4 条</option><option value="6" selected>标准 · 6 条</option><option value="8">大型 · 8 条</option></select>
+          </section>
+
+          <section class="settings-section hidden" id="word-settings">
+            <div class="section-heading"><h2>单词设置</h2><span class="section-step">01</span></div>
+            <label class="field-label" for="word-list">单词与线索 <span>每行一个：WORD 空格 线索</span></label>
+            <textarea id="word-list" rows="7" spellcheck="false">APPLE 苹果
+BOOK 书本
+HOUSE 房子
+GARDEN 花园
+ORANGE 橙子
+RIVER 河流
+PLANET 行星
+BRIDGE 桥梁
+MUSIC 音乐
+FLOWER 花朵</textarea>
+            <div class="inline-options"><label class="check-line"><input id="word-bank" type="checkbox" /> 显示单词库</label><label class="compact-field">预填字母 <select id="prefill"><option value="0">无</option><option value="0.2">少量</option><option value="0.4">更多</option></select></label></div>
+            <p class="hint">单词谜题的线索可能有多种解释，答案检查依据你输入的单词。</p>
+          </section>
+
+          <div class="generate-wrap"><button id="generate" class="primary-button"><span>生成新谜题</span><span aria-hidden="true">↗</span></button><div class="seed-line">谜题编号 <code id="puzzle-id">等待生成</code></div></div>
+        </aside>
+
+        <section class="panel puzzle-panel" aria-label="谜题工作区">
+          <div class="puzzle-toolbar"><div><span class="live-label"><span class="status-dot"></span> 当前谜题</span><h2 id="puzzle-title">准备开始</h2></div><div class="toolbar-actions"><button id="save" class="icon-button" title="保存进度" aria-label="保存进度">♡</button><button id="reset" class="icon-button" title="清空填写" aria-label="清空填写">↺</button><div class="print-menu"><button id="print-menu-button" class="secondary-button">打印 <span>⌄</span></button><div id="print-menu" class="print-popover hidden"><button data-print="puzzle">打印谜题</button><button data-print="answers">打印答案</button><button data-print="both">谜题 + 答案</button></div></div></div></div>
+          <div class="puzzle-meta"><span id="meta-summary">设置后生成一份新谜题</span><span id="meta-difficulty">—</span></div>
+          <div id="notice" class="notice hidden" role="status"></div>
+          <div id="puzzle-content" class="puzzle-content"><div class="empty-state"><div class="empty-icon">✳</div><h3>你的谜题，正在等你</h3><p>从左侧选择设置，<br />然后生成一份独一无二的挑战。</p></div></div>
+          <div class="puzzle-footer"><span><span class="footer-star">✳</span> 每一题，都是新的可能。</span><span id="footer-id">P&amp;P — DAILY PRACTICE</span></div>
+        </section>
+      </div>
+      <section class="below-fold"><div class="tip-card"><span class="tip-icon">✎</span><div><strong>小提示</strong><p>算术谜题中，横向和纵向的表达式会在数字格相交。试试从最容易确定的数字开始。</p></div></div><div class="tip-card"><span class="tip-icon">⌘</span><div><strong>你的进度，只属于你</strong><p>谜题会保存在本机浏览器中。刷新页面后，可以继续上次的挑战。</p></div></div></section>
+      <footer class="site-footer"><span>MADE FOR CURIOUS MINDS</span><span>一个轻量、开放的纸笔谜题工坊</span></footer>
+    </main>
+    <div id="print-root" aria-hidden="true"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
