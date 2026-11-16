@@ -10,38 +10,43 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#" aria-label="Pen and Puzzle 首页"><span class="brand-mark">P</span><span>pen<span class="brand-amp">&amp;</span>puzzle</span></a>
-      <div class="topbar-note"><span class="status-dot"></span>无需注册 · 直接在浏览器中使用</div>
+      <a class="brand" href="#" aria-label="Pen and Puzzle 首页" data-i18n-aria="brandHome"><span class="brand-mark">P</span><span>pen<span class="brand-amp">&amp;</span>puzzle</span></a>
+      <div class="topbar-tools"><label class="language-picker"><span data-i18n="languageLabel">语言</span><select id="language" aria-label="语言" data-i18n-aria="languageLabel"><option value="zh-CN">中文</option><option value="en">English</option><option value="ko">한국어</option><option value="ja">日本語</option></select></label><div class="topbar-note"><span class="status-dot"></span><span data-i18n="topbarNote">无需注册 · 直接在浏览器中使用</span></div></div>
     </header>
 
     <main class="shell">
       <section class="intro">
-        <div class="eyebrow">YOUR DAILY BRAIN STRETCH</div>
-        <h1>给好奇心，<span>留一张纸。</span></h1>
-        <p>生成一份专属谜题，在线解答，或打印出来慢慢享受。</p>
+        <div class="eyebrow" data-i18n="eyebrow">主题关卡 · 汪汪队 × 奥特曼</div>
+        <h1 data-i18n="introTitle">算术与单词交叉谜题</h1>
+        <p data-i18n="introText">生成谜题，在线填写答案，或打印使用。</p>
+        <div class="theme-stamps" aria-label="汪汪队与奥特曼主题" data-i18n-aria="themeLabel">
+          <div class="theme-stamp paw-stamp"><span class="paw-mark" aria-hidden="true">🐾</span></div>
+          <span class="theme-separator" aria-hidden="true">+</span>
+          <div class="theme-stamp ultra-stamp"><span class="ultra-mark" aria-hidden="true"><i></i></span></div>
+        </div>
       </section>
 
       <div class="workspace">
-        <aside class="panel controls" aria-label="谜题设置">
-          <div class="mode-switch" role="tablist" aria-label="谜题类型">
-            <button class="mode-button active" data-mode="math" role="tab" aria-selected="true">＋ 算术谜题</button>
-            <button class="mode-button" data-mode="words" role="tab" aria-selected="false">Aa 单词谜题</button>
+        <aside class="panel controls" aria-label="谜题设置" data-i18n-aria="controlSettings">
+          <div class="mode-switch" role="tablist" aria-label="谜题类型" data-i18n-aria="puzzleType">
+            <button class="mode-button active" data-mode="math" role="tab" aria-selected="true" data-i18n="mathTab">＋ 算术谜题</button>
+            <button class="mode-button" data-mode="words" role="tab" aria-selected="false" data-i18n="wordTab">Aa 单词谜题</button>
           </div>
 
           <section class="settings-section" id="math-settings">
-            <div class="section-heading"><h2>算术设置</h2><span class="section-step">01</span></div>
-            <label class="field-label" for="range">数字范围 <span>操作数和结果</span></label>
-            <div class="range-row"><select id="range"><option value="10">0 — 10</option><option value="20">0 — 20</option><option value="50">0 — 50</option><option value="100">0 — 100</option></select><label class="custom-range"><span>或自定义</span><input id="custom-range" type="number" min="3" max="500" placeholder="N" aria-label="自定义最大数字" /></label></div>
-            <fieldset class="operator-field"><legend>运算符 <span>至少选择一个</span></legend><div class="operator-options"><label><input type="checkbox" value="+" checked /><span>＋</span></label><label><input type="checkbox" value="−" checked /><span>−</span></label><label><input type="checkbox" value="×" checked /><span>×</span></label><label><input type="checkbox" value="÷" checked /><span>÷</span></label></div></fieldset>
-            <label class="field-label" for="difficulty">难度 <span>空格数量影响挑战性</span></label>
-            <select id="difficulty"><option value="easy">轻松 · 约 25% 留空</option><option value="normal" selected>适中 · 约 40% 留空</option><option value="hard">挑战 · 约 55% 留空</option></select>
-            <label class="field-label" for="equation-count">谜题规模 <span>表达式条数</span></label>
-            <select id="equation-count"><option value="4">小型 · 4 条</option><option value="6" selected>标准 · 6 条</option><option value="8">大型 · 8 条</option></select>
+            <div class="section-heading"><h2 data-i18n="mathSettings">算术设置</h2><span class="section-step">01</span></div>
+            <label class="field-label" for="range-max"><span data-i18n="rangeLabel">数字范围</span><span data-i18n="rangeHelp">操作数和结果</span></label>
+            <label class="range-row" aria-label="数字范围" data-i18n-aria="rangeLabel"><span class="range-start">0 —</span><input class="range-bound" id="range-max" type="number" min="3" max="500" step="1" value="50" required inputmode="numeric" aria-label="自定义最大数字" data-i18n-aria="customMax" /></label>
+            <fieldset class="operator-field"><legend><span data-i18n="operators">运算符</span><span data-i18n="operatorHelp">至少选择一个</span></legend><div class="operator-options"><label><input type="checkbox" value="+" checked /><span>＋</span></label><label><input type="checkbox" value="−" checked /><span>−</span></label><label><input type="checkbox" value="×" checked /><span>×</span></label><label><input type="checkbox" value="÷" checked /><span>÷</span></label></div></fieldset>
+            <label class="field-label" for="difficulty"><span data-i18n="difficulty">难度</span><span data-i18n="difficultyHelp">空格数量影响挑战性</span></label>
+            <select id="difficulty"><option value="easy" data-i18n="easy">轻松 · 约 25% 留空</option><option value="normal" selected data-i18n="normal">适中 · 约 40% 留空</option><option value="hard" data-i18n="hard">挑战 · 约 55% 留空</option></select>
+            <label class="field-label" for="equation-count"><span data-i18n="puzzleSize">谜题规模</span><span data-i18n="equationCount">表达式条数</span></label>
+            <input id="equation-count" type="number" min="4" max="40" step="1" value="6" inputmode="numeric" aria-label="表达式条数，范围 4 到 40" data-i18n-aria="equationRange" />
           </section>
 
           <section class="settings-section hidden" id="word-settings">
-            <div class="section-heading"><h2>单词设置</h2><span class="section-step">01</span></div>
-            <label class="field-label" for="word-list">单词与线索 <span>每行一个：WORD 空格 线索</span></label>
+            <div class="section-heading"><h2 data-i18n="wordSettings">单词设置</h2><span class="section-step">01</span></div>
+            <label class="field-label" for="word-list"><span data-i18n="wordsAndClues">单词与线索</span><span data-i18n="wordsFormat">每行一个：WORD 空格 线索</span></label>
             <textarea id="word-list" rows="7" spellcheck="false">APPLE 苹果
 BOOK 书本
 HOUSE 房子
@@ -52,23 +57,23 @@ PLANET 行星
 BRIDGE 桥梁
 MUSIC 音乐
 FLOWER 花朵</textarea>
-            <div class="inline-options"><label class="check-line"><input id="word-bank" type="checkbox" /> 显示单词库</label><label class="compact-field">预填字母 <select id="prefill"><option value="0">无</option><option value="0.2">少量</option><option value="0.4">更多</option></select></label></div>
-            <p class="hint">单词谜题的线索可能有多种解释，答案检查依据你输入的单词。</p>
+            <div class="inline-options"><label class="check-line"><input id="word-bank" type="checkbox" /> <span data-i18n="showWordBank">显示单词库</span></label><label class="compact-field"><span data-i18n="prefillLetters">预填字母</span><select id="prefill"><option value="0" data-i18n="none">无</option><option value="0.2" data-i18n="some">少量</option><option value="0.4" data-i18n="more">更多</option></select></label></div>
+            <p class="hint" data-i18n="wordHint">单词谜题的线索可能有多种解释，答案检查依据你输入的单词。</p>
           </section>
 
-          <div class="generate-wrap"><button id="generate" class="primary-button"><span>生成新谜题</span><span aria-hidden="true">↗</span></button><div class="seed-line">谜题编号 <code id="puzzle-id">等待生成</code></div></div>
+          <div class="generate-wrap"><button id="generate" class="primary-button"><span data-i18n="generate">生成新谜题</span><span aria-hidden="true">↗</span></button><div class="seed-line"><span data-i18n="puzzleId">谜题编号</span> <code id="puzzle-id" data-i18n="waiting">等待生成</code></div><div class="history-import"><label class="history-label" for="history-select" data-i18n="puzzleHistory">历史题目</label><select id="history-select" aria-label="选择历史题目" data-i18n-aria="selectHistory"><option value="" data-i18n="historyEmpty">暂无历史记录</option></select><button id="history-import" class="secondary-button" type="button" data-i18n="importHistory">导入题目</button></div></div>
         </aside>
 
-        <section class="panel puzzle-panel" aria-label="谜题工作区">
-          <div class="puzzle-toolbar"><div><span class="live-label"><span class="status-dot"></span> 当前谜题</span><h2 id="puzzle-title">准备开始</h2></div><div class="toolbar-actions"><button id="save" class="icon-button" title="保存进度" aria-label="保存进度">♡</button><button id="reset" class="icon-button" title="清空填写" aria-label="清空填写">↺</button><div class="print-menu"><button id="print-menu-button" class="secondary-button">打印 <span>⌄</span></button><div id="print-menu" class="print-popover hidden"><button data-print="puzzle">打印谜题</button><button data-print="answers">打印答案</button><button data-print="both">谜题 + 答案</button></div></div></div></div>
-          <div class="puzzle-meta"><span id="meta-summary">设置后生成一份新谜题</span><span id="meta-difficulty">—</span></div>
+        <section class="panel puzzle-panel" aria-label="谜题工作区" data-i18n-aria="workspace">
+          <div class="puzzle-toolbar"><div><span class="live-label"><span class="status-dot"></span> <span data-i18n="currentPuzzle">当前谜题</span></span><h2 id="puzzle-title" data-i18n="ready">准备开始</h2></div><div class="toolbar-actions"><button id="save" class="icon-button" title="保存进度" aria-label="保存进度" data-i18n-title="saveProgress" data-i18n-aria="saveProgress">♡</button><button id="reset" class="icon-button" title="清空填写" aria-label="清空填写" data-i18n-title="clearAnswers" data-i18n-aria="clearAnswers">↺</button><div class="print-menu"><button id="print-menu-button" class="secondary-button"><span data-i18n="print">打印</span> <span>⌄</span></button><div id="print-menu" class="print-popover hidden"><button data-print="puzzle" data-i18n="printPuzzle">打印谜题</button><button data-print="answers" data-i18n="printAnswers">打印答案</button><button data-print="both" data-i18n="printBoth">谜题 + 答案</button></div></div></div></div>
+          <div class="puzzle-meta"><span id="meta-summary" data-i18n="metaEmpty">设置后生成一份新谜题</span><span class="puzzle-meta-status"><span id="puzzle-timer" class="puzzle-timer" role="timer" aria-label="用时" data-i18n-aria="elapsedTime">00:00.000</span><span id="meta-difficulty">—</span></span></div>
           <div id="notice" class="notice hidden" role="status"></div>
-          <div id="puzzle-content" class="puzzle-content"><div class="empty-state"><div class="empty-icon">✳</div><h3>你的谜题，正在等你</h3><p>从左侧选择设置，<br />然后生成一份独一无二的挑战。</p></div></div>
-          <div class="puzzle-footer"><span><span class="footer-star">✳</span> 每一题，都是新的可能。</span><span id="footer-id">P&amp;P — DAILY PRACTICE</span></div>
+          <div id="puzzle-content" class="puzzle-content"><div class="empty-state"><div class="empty-icon">✳</div><h3 data-i18n="emptyTitle">你的谜题，正在等你</h3><p data-i18n="emptyText">从左侧选择设置，<br />然后生成一份独一无二的挑战。</p></div></div>
+          <div class="puzzle-footer"><span><span class="footer-star">✳</span> <span data-i18n="footerText">每一题，都是新的可能。</span></span><span id="footer-id">P&amp;P — DAILY PRACTICE</span></div>
         </section>
       </div>
-      <section class="below-fold"><div class="tip-card"><span class="tip-icon">✎</span><div><strong>小提示</strong><p>算术谜题中，横向和纵向的表达式会在数字格相交。试试从最容易确定的数字开始。</p></div></div><div class="tip-card"><span class="tip-icon">⌘</span><div><strong>你的进度，只属于你</strong><p>谜题会保存在本机浏览器中。刷新页面后，可以继续上次的挑战。</p></div></div></section>
-      <footer class="site-footer"><span>MADE FOR CURIOUS MINDS</span><span>一个轻量、开放的纸笔谜题工坊</span></footer>
+      <section class="below-fold"><div class="tip-card"><span class="tip-icon">✎</span><div><strong data-i18n="tipTitle">小提示</strong><p data-i18n="tipText">算术谜题中，横向和纵向的表达式会在数字格相交。试试从最容易确定的数字开始。</p></div></div><div class="tip-card"><span class="tip-icon">⌘</span><div><strong data-i18n="privacyTitle">你的进度，只属于你</strong><p data-i18n="privacyText">谜题会保存在本机浏览器中。刷新页面后，可以继续上次的挑战。</p></div></div></section>
+      <footer class="site-footer"><span>MADE FOR CURIOUS MINDS</span><span data-i18n="footerNote">一个轻量、开放的纸笔谜题工坊</span></footer>
     </main>
     <div id="print-root" aria-hidden="true"></div>
     <script type="module" src="./app.js"></script>
