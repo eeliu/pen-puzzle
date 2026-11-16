@@ -47,6 +47,8 @@ const translations = {
     saveProgress:'保存进度',
     clearAnswers:'清空填写',
     print:'打印',
+    enterFullscreen:'进入全屏',
+    exitFullscreen:'退出全屏',
     printPuzzle:'打印谜题',
     printAnswers:'打印答案',
     printBoth:'谜题 + 答案',
@@ -143,6 +145,8 @@ const translations = {
     saveProgress:'Save progress',
     clearAnswers:'Clear answers',
     print:'Print',
+    enterFullscreen:'Enter fullscreen',
+    exitFullscreen:'Exit fullscreen',
     printPuzzle:'Print puzzle',
     printAnswers:'Print answers',
     printBoth:'Puzzle + answers',
@@ -239,6 +243,8 @@ const translations = {
     saveProgress:'진행 상황 저장',
     clearAnswers:'입력 지우기',
     print:'인쇄',
+    enterFullscreen:'전체 화면',
+    exitFullscreen:'전체 화면 종료',
     printPuzzle:'퍼즐 인쇄',
     printAnswers:'정답 인쇄',
     printBoth:'퍼즐 + 정답',
@@ -335,6 +341,8 @@ const translations = {
     saveProgress:'進捗を保存',
     clearAnswers:'入力を消去',
     print:'印刷',
+    enterFullscreen:'全画面表示',
+    exitFullscreen:'全画面表示を終了',
     printPuzzle:'パズルを印刷',
     printAnswers:'答えを印刷',
     printBoth:'パズル + 答え',
@@ -417,6 +425,13 @@ function applyLanguage(language) {
   document.querySelectorAll('[data-i18n-title]').forEach((element) => {
     element.setAttribute('title', t(element.dataset.i18nTitle));
   });
+  const focusModeButton = $('#focus-mode');
+  if (focusModeButton) {
+    const isFocused = document.body.classList.contains('focus-mode');
+    const label = t(isFocused ? 'exitFullscreen' : 'enterFullscreen');
+    focusModeButton.title = label;
+    focusModeButton.setAttribute('aria-label', label);
+  }
   try { localStorage.setItem(localeStorageKey, state.language); } catch { /* Locale still works when storage is unavailable. */ }
   if (state.puzzle) renderPuzzle();
   else if (state.notice) showNotice(state.notice.key, state.notice.type, state.notice.values);
@@ -896,6 +911,26 @@ $('#reset').addEventListener('click', () => {
 $('#save').addEventListener('click', () => { persist(); showNotice('saved', 'success'); });
 $('#language').addEventListener('change', (event) => applyLanguage(event.target.value));
 $('#print-menu-button').addEventListener('click', () => $('#print-menu').classList.toggle('hidden'));
+const focusModeButton = $('#focus-mode');
+function setFocusMode(enabled) {
+  document.body.classList.toggle('focus-mode', enabled);
+  focusModeButton.setAttribute('aria-pressed', String(enabled));
+  const label = t(enabled ? 'exitFullscreen' : 'enterFullscreen');
+  focusModeButton.title = label;
+  focusModeButton.setAttribute('aria-label', label);
+}
+focusModeButton.addEventListener('click', async () => {
+  const enabled = !document.body.classList.contains('focus-mode');
+  setFocusMode(enabled);
+  if (enabled && document.documentElement.requestFullscreen) {
+    try { await document.documentElement.requestFullscreen(); } catch { /* Keep the compact layout if fullscreen is unavailable. */ }
+  } else if (!enabled && document.fullscreenElement && document.exitFullscreen) {
+    try { await document.exitFullscreen(); } catch { /* The compact layout is already closed. */ }
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && document.body.classList.contains('focus-mode')) setFocusMode(false);
+});
 document.querySelectorAll('[data-print]').forEach((button) => button.addEventListener('click', () => {
   $('#print-menu').classList.add('hidden');
   printPuzzle(button.dataset.print);
