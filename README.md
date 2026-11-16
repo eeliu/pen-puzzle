@@ -6,6 +6,8 @@ A lightweight, browser-only arithmetic and word crossword worksheet maker. It ru
 
 Open `index.html` in a browser, choose a puzzle type, adjust its settings, and generate a puzzle. The app supports answer checking, revealing solutions, local progress saving, and printing the puzzle and answer sheet separately.
 
+Online page: [https://eeliu.github.io/pen-puzzle/](https://eeliu.github.io/pen-puzzle/)
+
 For local development, serve this directory with any static web server, for example:
 
 ```sh

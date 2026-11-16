@@ -33,3 +33,4 @@ body.focus-mode .answer-number{font-size:calc(7px*var(--grid-scale))}
 .focus-mode-button svg{display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round}
 body.focus-mode .focus-mode-button{color:var(--green);border-color:#d5e0d0;background:#eef3eb}
 @media(max-width:760px){body.focus-mode .shell{padding:0}body.focus-mode .puzzle-panel{padding:12px 12px 10px}body.focus-mode .puzzle-content{padding:8px 0}body.focus-mode .arithmetic-grid{--grid-cell-size:29px}body.focus-mode .puzzle-footer{padding-top:8px}}
+.github-link{display:inline-flex;align-items:center;justify-content:center;margin-top:14px;text-decoration:none}
