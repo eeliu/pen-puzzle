@@ -96,9 +96,9 @@ test('word crossings agree on letters and each placed word joins the existing gr
   const puzzle = buildWordPuzzle(518, sampleWordEntries, 0.4);
   const connectedCells = new Set();
 
-  for (const [index, word] of puzzle.placed.entries()) {
+  for (const word of puzzle.placed) {
     const shared = word.cells.filter((cell) => connectedCells.has(coordinateKey(cell)));
-    if (index > 0) assert.ok(shared.length > 0, `${word.word} does not cross the existing puzzle`);
+    if (!word.isRoot) assert.ok(shared.length > 0, `${word.word} does not cross the existing puzzle`);
     for (const cell of word.cells) {
       const gridCell = puzzle.grid.get(coordinateKey(cell));
       assert.equal(gridCell.letter, cell.letter, `crossing letter mismatch for ${word.word}`);
