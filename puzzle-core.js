@@ -114,7 +114,7 @@ export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty) {
   const grid = new Map();
   const directionsByCell = new Map();
   const anchorsByValue = new Map();
-  const expressions = [];
+  let expressions = [];
 
   const addExpression = (expression, cells, direction) => {
     cells.forEach((cell) => {
@@ -134,7 +134,8 @@ export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty) {
 
   for (const expression of candidates) {
     if (!expressions.length) {
-      const cells = expressionCells(expression, 0, 0, 'across');
+      // Center the first equation so the rest of the structure can grow outwards.
+      const cells = expressionCells(expression, -2, 0, 'across');
       addExpression(expression, cells, 'across');
       continue;
     }
@@ -168,8 +169,20 @@ export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty) {
       const candidateMaxX = Math.max(maxX, ...candidate.cells.map((cell) => cell.x));
       const candidateMinY = Math.min(minY, ...candidate.cells.map((cell) => cell.y));
       const candidateMaxY = Math.max(maxY, ...candidate.cells.map((cell) => cell.y));
-      const area = (candidateMaxX - candidateMinX + 1) * (candidateMaxY - candidateMinY + 1);
-      const score = candidate.intersections * 4 - area * 0.01 + random() * 0.1;
+      const width = candidateMaxX - candidateMinX + 1;
+      const height = candidateMaxY - candidateMinY + 1;
+      const progress = Math.sqrt((expressions.length + 1) / count);
+      const targetWidth = 5 + 15 * progress;
+      const targetHeight = 1 + 28 * progress;
+      const sizePenalty = Math.abs(width - targetWidth) + Math.abs(height - targetHeight);
+      const centerPenalty = Math.abs(candidateMinX + candidateMaxX) + Math.abs(candidateMinY + candidateMaxY);
+      const aspectPenalty = Math.abs(width / height - (186 / 273)) * Math.max(width, height);
+      const score = candidate.intersections * 2
+        - Math.max(0, candidate.intersections - 1) * 4
+        - sizePenalty * 4
+        - aspectPenalty * 5
+        - centerPenalty * 0.4
+        + random() * 0.1;
       if (score > bestScore) {
         bestScore = score;
         placement = candidate;
@@ -177,6 +190,55 @@ export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty) {
     }
     addExpression(expression, placement.cells, placement.direction);
   }
+
+  // Keep the equation coordinates as a separate layout before filling its cells.
+  const layoutSlots = expressions.map((placed) => ({
+    x: placed.cells[0].x,
+    y: placed.cells[0].y,
+    direction: placed.direction,
+    equationKey: placed.expression.join('|'),
+  }));
+  const equationsByKey = new Map(candidates.map((expression) => [expression.join('|'), expression]));
+  expressions = layoutSlots.map((slot) => {
+    const expression = equationsByKey.get(slot.equationKey);
+    return {
+      expression,
+      cells: expressionCells(expression, slot.x, slot.y, slot.direction),
+      direction: slot.direction,
+    };
+  });
+
+  // Fill the fixed structure, then translate it to positive grid coordinates.
+  const plannedCells = expressions.flatMap((placed) => placed.cells);
+  const minX = Math.min(...plannedCells.map((cell) => cell.x));
+  const minY = Math.min(...plannedCells.map((cell) => cell.y));
+  grid.clear();
+  directionsByCell.clear();
+  const normalizedExpressions = expressions.map((placed) => ({
+    ...placed,
+    cells: placed.cells.map((cell) => ({ ...cell, x: cell.x - minX, y: cell.y - minY })),
+  }));
+  const width = Math.max(...normalizedExpressions.flatMap((placed) => placed.cells.map((cell) => cell.x))) + 1;
+  const height = Math.max(...normalizedExpressions.flatMap((placed) => placed.cells.map((cell) => cell.y))) + 1;
+  const transposeForPortrait = width > height;
+  expressions = normalizedExpressions.map((placed) => ({
+    ...placed,
+    direction: transposeForPortrait
+      ? (placed.direction === 'across' ? 'down' : 'across')
+      : placed.direction,
+    cells: transposeForPortrait
+      ? placed.cells.map((cell) => ({ ...cell, x: cell.y, y: cell.x }))
+      : placed.cells,
+  }));
+
+  expressions.forEach((placed) => {
+    placed.cells.forEach((cell) => {
+      const key = `${cell.x},${cell.y}`;
+      grid.set(key, cell);
+      if (!directionsByCell.has(key)) directionsByCell.set(key, new Set());
+      directionsByCell.get(key).add(placed.direction);
+    });
+  });
 
   const numericCells = [...grid.values()].filter((cell) => cell.numeric && grid.get(`${cell.x},${cell.y}`) === cell);
   const ratio = { easy: 0.25, normal: 0.4, hard: 0.55 }[difficulty];

@@ -861,6 +861,13 @@ function printPuzzle(kind) {
   const sheet = (answers) => {
     const page = document.createElement('section');
     page.className = 'print-sheet';
+    if (state.puzzle.kind === 'math') {
+      const bounds = getGridBounds(state.puzzle);
+      const columns = bounds.maxX - bounds.minX + 1;
+      const rows = bounds.maxY - bounds.minY + 1;
+      const cellSize = Math.min(8, 186 / columns, 205 / rows);
+      page.style.setProperty('--print-cell-size', `${cellSize}mm`);
+    }
     const title = document.createElement('h1');
     title.textContent = answers ? t('answerTitle') : t('printTitle');
     const summary = document.createElement('div');
