@@ -34,3 +34,66 @@ body.focus-mode .answer-number{font-size:calc(7px*var(--grid-scale))}
 body.focus-mode .focus-mode-button{color:var(--green);border-color:#d5e0d0;background:#eef3eb}
 @media(max-width:760px){body.focus-mode .shell{padding:0}body.focus-mode .puzzle-panel{padding:12px 12px 10px}body.focus-mode .puzzle-content{padding:8px 0}body.focus-mode .arithmetic-grid{--grid-cell-size:29px}body.focus-mode .puzzle-footer{padding-top:8px}}
 .github-link{display:inline-flex;align-items:center;justify-content:center;margin-top:14px;text-decoration:none}
+
+@media print{
+  @page{size:A4 portrait;margin:8mm}
+  .print-sheet{
+    width:194mm;
+    height:281mm;
+    margin:0 auto;
+  }
+  .print-content{
+    width:100%;
+    min-height:0;
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .print-content .grid-wrap{max-width:none;max-height:none;overflow:visible}
+  .print-sheet .arithmetic-grid td{
+    width:var(--print-cell-size);
+    height:var(--print-cell-size);
+    font-size:clamp(11pt,calc(var(--print-cell-size)*.45),24pt);
+  }
+  .print-sheet .arithmetic-grid td.operator-cell{
+    font-size:clamp(10pt,calc(var(--print-cell-size)*.36),18pt);
+  }
+  .print-sheet .arithmetic-grid input{
+    font-size:clamp(11pt,calc(var(--print-cell-size)*.45),24pt);
+  }
+  .print-sheet .equation-notes{
+    margin-top:4mm;
+    font-size:clamp(9pt,calc(var(--print-cell-size)*.3),14pt);
+  }
+  .print-sheet.print-word-page .word-layout{
+    width:100%;
+    flex-direction:column;
+    flex-wrap:nowrap;
+    align-items:center;
+    justify-content:center;
+    gap:5mm;
+  }
+  .print-sheet .word-grid td{
+    width:var(--print-cell-size);
+    height:var(--print-cell-size);
+  }
+  .print-sheet .word-grid input{font-size:clamp(9pt,calc(var(--print-cell-size)*.4),20pt)}
+  .print-sheet .word-grid .prefilled{font-size:clamp(9pt,calc(var(--print-cell-size)*.36),18pt)}
+  .print-sheet .word-grid .answer-number{font-size:clamp(6pt,calc(var(--print-cell-size)*.18),10pt)}
+  .print-sheet.print-word-page .clues{
+    width:100%;
+    max-width:none;
+    min-width:0;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5mm;
+    font-size:8pt;
+    line-height:1.35;
+  }
+  .print-sheet .clue-section{min-width:0}
+  .print-sheet .clues h3{font-size:9pt;margin:0 0 2mm}
+  .print-sheet .clues ol{padding-left:5mm;margin:0}
+  .print-sheet .clues li{margin-bottom:1mm}
+  .print-sheet .word-bank-note{grid-column:1/-1;margin-top:0}
+}

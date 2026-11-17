@@ -544,9 +544,11 @@ function renderWords(puzzle) {
   const clues = document.createElement('div');
   clues.className = 'clues';
   for (const direction of ['across', 'down']) {
+    const section = document.createElement('section');
+    section.className = 'clue-section';
     const heading = document.createElement('h3');
     heading.textContent = `${t(direction)}${state.language === 'zh-CN' ? ` ${direction === 'across' ? 'ACROSS' : 'DOWN'}` : ''}`;
-    clues.append(heading);
+    section.append(heading);
     const list = document.createElement('ol');
     puzzle.placed.filter((word) => word.direction === direction).sort((a, b) => a.number - b.number).forEach((word) => {
       const item = document.createElement('li');
@@ -554,7 +556,8 @@ function renderWords(puzzle) {
       item.textContent = word.clue;
       list.append(item);
     });
-    clues.append(list);
+    section.append(list);
+    clues.append(section);
   }
   if (puzzle.showBank) {
     const bank = document.createElement('div');
@@ -869,7 +872,11 @@ function printPuzzle(kind) {
       if (answers) input.replaceWith(document.createTextNode(input.dataset.answer));
       else { input.value = ''; input.removeAttribute('value'); }
     });
-    page.append(clone);
+    const content = document.createElement('div');
+    content.className = 'print-content';
+    content.append(clone);
+    page.append(content);
+    fitPrintPage(page, clone, answers);
     if (answers) {
       const banner = document.createElement('div');
       banner.className = 'answer-banner';
@@ -887,6 +894,30 @@ function printPuzzle(kind) {
   state.printTitleBackup = document.title;
   document.title = state.historyRecordId || historyId(state.seed);
   window.print();
+}
+
+function fitPrintPage(page, content, answers) {
+  const table = content.querySelector('table');
+  if (!table) return;
+
+  const rowCount = table.rows.length;
+  const columnCount = Math.max(...[...table.rows].map((row) => row.cells.length));
+  if (!rowCount || !columnCount) return;
+
+  // A4 with 8 mm margins leaves 194 x 281 mm for the sheet.
+  const pageWidthMm = 194;
+  const pageHeightMm = 281;
+  const contentWidthMm = pageWidthMm - 6;
+  const headerHeightMm = 24;
+  const answerBannerHeightMm = answers ? 14 : 0;
+  const contentHeightMm = pageHeightMm - headerHeightMm - answerBannerHeightMm;
+  const clueAreaHeightMm = state.puzzle.kind === 'words' ? 74 : 0;
+
+  const cellWidthMm = contentWidthMm / columnCount;
+  const availableCellHeightMm = (contentHeightMm - clueAreaHeightMm) / rowCount;
+  const cellSizeMm = Math.min(cellWidthMm, availableCellHeightMm);
+  page.style.setProperty('--print-cell-size', `${cellSizeMm.toFixed(2)}mm`);
+  page.classList.toggle('print-word-page', state.puzzle.kind === 'words');
 }
 
 function setMode(mode) {
