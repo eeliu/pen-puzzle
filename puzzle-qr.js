@@ -1,5 +1,15 @@
 import qrcode from './vendor/qrcode-generator.mjs';
 
+export function createPuzzlePageUrl(puzzleId) {
+  if (typeof puzzleId !== 'string' || !puzzleId.trim()) {
+    throw new Error('A puzzle ID is required to create a share URL');
+  }
+
+  const url = new URL('https://eeliu.github.io/pen-puzzle/');
+  url.searchParams.set('puzzle', puzzleId);
+  return url.toString();
+}
+
 export function createPuzzleQrSvg(puzzleId) {
   if (typeof puzzleId !== 'string' || !puzzleId.trim()) {
     throw new Error('A puzzle ID is required to create a QR code');
