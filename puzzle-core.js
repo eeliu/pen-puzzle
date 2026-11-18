@@ -108,7 +108,7 @@ function canPlace(cells, direction, grid, directionsByCell) {
   return intersectionKeys.size;
 }
 
-export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty) {
+export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty, algorithmVersion = 2) {
   const random = seededRandom(seed);
   const candidates = arithmeticCandidates(max, enabled, random);
   const grid = new Map();
@@ -244,30 +244,83 @@ export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty) {
   const ratio = { easy: 0.25, normal: 0.4, hard: 0.55 }[difficulty];
   const targetBlankCount = Math.max(1, Math.floor(numericCells.length * ratio));
   const blankSet = new Set();
-  const shuffledExpressions = [...expressions];
-  for (let i = shuffledExpressions.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(random() * (i + 1));
-    [shuffledExpressions[i], shuffledExpressions[j]] = [shuffledExpressions[j], shuffledExpressions[i]];
-  }
+  if (algorithmVersion === 1) {
+    const shuffledExpressions = [...expressions];
+    for (let i = shuffledExpressions.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [shuffledExpressions[i], shuffledExpressions[j]] = [shuffledExpressions[j], shuffledExpressions[i]];
+    }
 
-  // Cover every equation with at least one blank numeric cell.
-  for (const placedExpression of shuffledExpressions) {
-    const numericKeys = placedExpression.cells
+    // Keep version 1's blank selection so existing PP1 IDs retain their original grids.
+    for (const placedExpression of shuffledExpressions) {
+      const numericKeys = placedExpression.cells
+        .filter((cell) => cell.numeric)
+        .map((cell) => `${cell.x},${cell.y}`);
+      if (numericKeys.some((key) => blankSet.has(key))) continue;
+      blankSet.add(choose(numericKeys, random));
+    }
+
+    const remainingKeys = numericCells
+      .map((cell) => `${cell.x},${cell.y}`)
+      .filter((key) => !blankSet.has(key));
+    for (let i = remainingKeys.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [remainingKeys[i], remainingKeys[j]] = [remainingKeys[j], remainingKeys[i]];
+    }
+    while (blankSet.size < targetBlankCount && remainingKeys.length) blankSet.add(remainingKeys.pop());
+  } else if (algorithmVersion === 2) {
+    const numericKeysByEquation = expressions.map((placedExpression) => placedExpression.cells
       .filter((cell) => cell.numeric)
-      .map((cell) => `${cell.x},${cell.y}`);
-    if (numericKeys.some((key) => blankSet.has(key))) continue;
-    blankSet.add(choose(numericKeys, random));
-  }
+      .map((cell) => `${cell.x},${cell.y}`));
+    const equationsByNumericKey = new Map();
+    numericKeysByEquation.forEach((keys, equationIndex) => {
+      for (const key of keys) {
+        if (!equationsByNumericKey.has(key)) equationsByNumericKey.set(key, []);
+        equationsByNumericKey.get(key).push(equationIndex);
+      }
+    });
+    const blankCounts = numericKeysByEquation.map(() => 0);
+    const changeBlank = (key, add) => {
+      if (add) blankSet.add(key);
+      else blankSet.delete(key);
+      for (const equationIndex of equationsByNumericKey.get(key) || []) {
+        blankCounts[equationIndex] += add ? 1 : -1;
+      }
+    };
 
-  const remainingKeys = numericCells
-    .map((cell) => `${cell.x},${cell.y}`)
-    .filter((key) => !blankSet.has(key));
-  for (let i = remainingKeys.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(random() * (i + 1));
-    [remainingKeys[i], remainingKeys[j]] = [remainingKeys[j], remainingKeys[i]];
-  }
-  while (blankSet.size < targetBlankCount && remainingKeys.length) {
-    blankSet.add(remainingKeys.pop());
+    // Alternating positions along each equation guarantee both a clue and a blank.
+    const blankParity = Math.floor(random() * 2);
+    for (const cell of numericCells) {
+      const key = `${cell.x},${cell.y}`;
+      const parity = (Math.floor(cell.x / 2) + Math.floor(cell.y / 2)) % 2;
+      if (parity === blankParity) changeBlank(key, true);
+    }
+
+    const shuffledNumericKeys = numericCells.map((cell) => `${cell.x},${cell.y}`);
+    for (let i = shuffledNumericKeys.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [shuffledNumericKeys[i], shuffledNumericKeys[j]] = [shuffledNumericKeys[j], shuffledNumericKeys[i]];
+    }
+
+    // Adjust toward difficulty without making any equation all blank or all given.
+    if (blankSet.size > targetBlankCount) {
+      for (const key of shuffledNumericKeys) {
+        if (blankSet.size <= targetBlankCount) break;
+        const affectedEquations = equationsByNumericKey.get(key) || [];
+        if (affectedEquations.every((index) => blankCounts[index] > 1)) changeBlank(key, false);
+      }
+    } else if (blankSet.size < targetBlankCount) {
+      for (const key of shuffledNumericKeys) {
+        if (blankSet.size >= targetBlankCount) break;
+        if (blankSet.has(key)) continue;
+        const affectedEquations = equationsByNumericKey.get(key) || [];
+        if (affectedEquations.every((index) => blankCounts[index] < numericKeysByEquation[index].length - 1)) {
+          changeBlank(key, true);
+        }
+      }
+    }
+  } else {
+    throw new Error(`Unsupported arithmetic generator version: ${algorithmVersion}`);
   }
 
   const blankCount = blankSet.size;

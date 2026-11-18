@@ -634,12 +634,12 @@ function showNotice(key, type = 'success', values = {}) {
   notice.className = key ? `notice ${type}` : 'notice hidden';
 }
 
-function createPuzzle(seed, rules, preparedPuzzle = null) {
+function createPuzzle(seed, rules, preparedPuzzle = null, preservedPuzzleId = null) {
   state.seed = seed >>> 0;
   state.mode = rules.mode;
   state.puzzle = preparedPuzzle || buildPuzzleFromRules(state.seed, rules);
   state.puzzle.userEntries = {};
-  state.puzzleId = encodePuzzleId(state.seed, rules);
+  state.puzzleId = preservedPuzzleId || encodePuzzleId(state.seed, rules);
   state.timerElapsed = 0;
   state.timerStartedAt = performance.now();
   state.timerCompleted = false;
@@ -686,7 +686,8 @@ function generate() {
 
 function reproducePuzzle() {
   try {
-    const { seed, rules, puzzle } = buildPuzzleFromId($('#puzzle-id-input').value);
+    const enteredPuzzleId = $('#puzzle-id-input').value.trim();
+    const { seed, rules, puzzle } = buildPuzzleFromId(enteredPuzzleId);
     persist();
     setMode(rules.mode);
     if (rules.mode === 'math') {
@@ -699,7 +700,7 @@ function reproducePuzzle() {
       $('#prefill').value = String(rules.prefill);
       $('#word-bank').checked = rules.showBank;
     }
-    createPuzzle(seed, rules, puzzle);
+    createPuzzle(seed, rules, puzzle, enteredPuzzleId);
     $('#puzzle-id-input').value = '';
   } catch (error) {
     showNotice('invalidPuzzleId', 'error');
@@ -936,7 +937,7 @@ function printPuzzle(kind) {
     title.textContent = answers ? t('answerTitle') : t('printTitle');
     const summary = document.createElement('div');
     summary.className = 'print-summary';
-    summary.textContent = `${t(state.puzzle.kind === 'math' ? 'mathPuzzle' : 'wordPuzzle')} · ${t('puzzleId')} ${state.puzzleId || historyId(state.seed)}${answers ? t('answerReference') : ''}`;
+    summary.textContent = `${t(state.puzzle.kind === 'math' ? 'mathPuzzle' : 'wordPuzzle')}${answers ? t('answerReference') : ''}`;
     page.append(title, summary);
     const clone = state.puzzle.kind === 'math' ? renderMath(state.puzzle) : renderWords(state.puzzle);
     clone.querySelectorAll('input[data-answer]').forEach((input) => {
@@ -991,7 +992,7 @@ function closePrintPreview() {
 
 function printPreviewNow() {
   state.printTitleBackup = document.title;
-  document.title = historyId(state.seed);
+  document.title = t('printTitle');
   window.print();
 }
 
