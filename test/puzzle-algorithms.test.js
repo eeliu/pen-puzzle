@@ -17,7 +17,7 @@ function coordinateKey(cell) {
   return `${cell.x},${cell.y}`;
 }
 
-test('arithmetic puzzle never reveals a complete equation', () => {
+test('arithmetic puzzle leaves both a clue and a blank in every equation', () => {
   for (let seed = 1; seed <= 20; seed += 1) {
     const puzzle = makeArithmeticPuzzle(seed);
     assert.ok(puzzle.expressions.length > 1, `seed ${seed} should produce a connected puzzle`);
@@ -26,8 +26,23 @@ test('arithmetic puzzle never reveals a complete equation', () => {
       const numericKeys = cells.filter((cell) => cell.numeric).map(coordinateKey);
       assert.ok(
         numericKeys.some((key) => puzzle.blankSet.has(key)),
-        `seed ${seed} contains a fully revealed equation: ${cells.map((cell) => cell.token).join(' ')}`,
+        `seed ${seed} contains an equation with no blanks: ${cells.map((cell) => cell.token).join(' ')}`,
       );
+      assert.ok(
+        numericKeys.some((key) => !puzzle.blankSet.has(key)),
+        `seed ${seed} contains an all-blank equation: ${cells.map((cell) => cell.token).join(' ')}`,
+      );
+    }
+  }
+});
+
+test('hard arithmetic puzzles never produce all-blank equations', () => {
+  for (let seed = 1; seed <= 40; seed += 1) {
+    const puzzle = buildArithmeticPuzzle(seed, 20, Object.keys(arithmeticOperators), 40, 'hard');
+    for (const { cells } of puzzle.expressions) {
+      const numericKeys = cells.filter((cell) => cell.numeric).map(coordinateKey);
+      assert.ok(numericKeys.some((key) => puzzle.blankSet.has(key)), `seed ${seed} has an equation with no blanks`);
+      assert.ok(numericKeys.some((key) => !puzzle.blankSet.has(key)), `seed ${seed} has an all-blank equation`);
     }
   }
 });

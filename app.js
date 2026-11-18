@@ -1,5 +1,6 @@
 import { newSeed, parseWords } from './puzzle-core.js';
 import { buildPuzzleFromId, buildPuzzleFromRules, encodePuzzleId } from './puzzle-id.js';
+import { createPuzzlePageUrl, createPuzzleQrSvg } from './puzzle-qr.js';
 
 const $ = (selector) => document.querySelector(selector);
 const translations = {
@@ -42,6 +43,14 @@ const translations = {
     generate:'生成新谜题',
     puzzleId:'谜题编号',
     puzzleIdHint:'编号包含种子和规则，可复制分享后复现。',
+    copyPuzzleId:'复制编号',
+    showPuzzleQr:'显示二维码',
+    qrCodeLabel:'谜题编号二维码',
+    qrCodeHint:'扫码打开在线页面并自动载入本题。二维码在本机生成。',
+    printQrCaption:'扫码在线打开本题',
+    copiedPuzzleId:'复制了题号',
+    copyPuzzleIdFailed:'复制失败，请选择编号手动复制。',
+    qrCodeError:'二维码生成失败，请检查编号长度。',
     puzzleIdPlaceholder:'粘贴新编号',
     reproducePuzzle:'导入并生成',
     invalidPuzzleId:'编号无效或版本不兼容，请检查后重试。',
@@ -148,6 +157,14 @@ const translations = {
     generate:'Generate puzzle',
     puzzleId:'Puzzle ID',
     puzzleIdHint:'The ID includes the seed and rules. Copy it to reproduce this puzzle.',
+    copyPuzzleId:'Copy ID',
+    showPuzzleQr:'Show QR code',
+    qrCodeLabel:'Puzzle ID QR code',
+    qrCodeHint:'Scan to open the online page and load this puzzle. The QR code is generated on this device.',
+    printQrCaption:'Scan to open this puzzle online',
+    copiedPuzzleId:'Puzzle number copied.',
+    copyPuzzleIdFailed:'Could not copy. Select the ID and copy it manually.',
+    qrCodeError:'Could not generate a QR code. Check the ID length.',
     puzzleIdPlaceholder:'Paste a new puzzle ID',
     reproducePuzzle:'Import and generate',
     invalidPuzzleId:'This ID is invalid or uses an unsupported version. Check it and try again.',
@@ -254,6 +271,14 @@ const translations = {
     generate:'새 퍼즐 만들기',
     puzzleId:'퍼즐 번호',
     puzzleIdHint:'번호에 시드와 규칙이 포함됩니다. 복사해 공유하면 같은 퍼즐을 다시 만들 수 있습니다.',
+    copyPuzzleId:'번호 복사',
+    showPuzzleQr:'QR 코드 보기',
+    qrCodeLabel:'퍼즐 번호 QR 코드',
+    qrCodeHint:'스캔하면 온라인 페이지에서 이 퍼즐이 자동으로 열립니다. QR 코드는 이 기기에서 생성됩니다.',
+    printQrCaption:'스캔하여 온라인에서 퍼즐 열기',
+    copiedPuzzleId:'문제 번호를 복사했습니다.',
+    copyPuzzleIdFailed:'복사할 수 없습니다. 번호를 선택해 직접 복사하세요.',
+    qrCodeError:'QR 코드를 만들 수 없습니다. 번호 길이를 확인하세요.',
     puzzleIdPlaceholder:'새 퍼즐 번호 붙여넣기',
     reproducePuzzle:'가져와서 생성',
     invalidPuzzleId:'번호가 잘못되었거나 지원하지 않는 버전입니다. 확인 후 다시 시도하세요.',
@@ -360,6 +385,14 @@ const translations = {
     generate:'新しいパズルを作成',
     puzzleId:'パズル番号',
     puzzleIdHint:'番号にはシードとルールが含まれます。コピーして共有すると同じパズルを再現できます。',
+    copyPuzzleId:'番号をコピー',
+    showPuzzleQr:'QRコードを表示',
+    qrCodeLabel:'パズル番号のQRコード',
+    qrCodeHint:'読み取るとオンラインページでこのパズルが自動的に開きます。QRコードはこの端末で生成されます。',
+    printQrCaption:'スキャンしてオンラインで開く',
+    copiedPuzzleId:'問題番号をコピーしました。',
+    copyPuzzleIdFailed:'コピーできません。番号を選択して手動でコピーしてください。',
+    qrCodeError:'QRコードを生成できません。番号の長さを確認してください。',
     puzzleIdPlaceholder:'新しいパズル番号を貼り付け',
     reproducePuzzle:'読み込んで作成',
     invalidPuzzleId:'番号が無効か、未対応のバージョンです。確認してもう一度お試しください。',
@@ -619,12 +652,15 @@ function renderPuzzle() {
   updateTimerDisplay();
   $('#footer-id').textContent = `P&P — ${state.seed.toString(16).toUpperCase()}`;
   $('#puzzle-id').textContent = state.puzzleId || state.seed.toString(16).toUpperCase().padStart(8, '0');
+  $('#copy-puzzle-id').disabled = false;
+  $('#toggle-puzzle-qr').disabled = false;
   if (puzzle.kind === 'math' && puzzle.expressions.length < puzzle.requestedCount) {
     showNotice('fewEquations', 'error', { count: puzzle.expressions.length });
   } else if (puzzle.kind === 'math' && puzzle.blankCount > puzzle.targetBlankCount) {
     showNotice('extraBlanks', 'success', { count: puzzle.blankCount, target: puzzle.targetBlankCount });
   } else if (puzzle.unplaced?.length) showNotice('unplacedNotice', 'error', { count: puzzle.unplaced.length });
   else showNotice('', 'success');
+  if (!$('#puzzle-qr-panel').classList.contains('hidden')) renderPuzzleQr();
 }
 
 function showNotice(key, type = 'success', values = {}) {
@@ -634,12 +670,60 @@ function showNotice(key, type = 'success', values = {}) {
   notice.className = key ? `notice ${type}` : 'notice hidden';
 }
 
-function createPuzzle(seed, rules, preparedPuzzle = null) {
+async function copyPuzzleId() {
+  if (!state.puzzleId) return;
+  try {
+    await navigator.clipboard.writeText(state.puzzleId);
+  } catch {
+    const temporaryInput = document.createElement('textarea');
+    temporaryInput.value = state.puzzleId;
+    temporaryInput.setAttribute('readonly', '');
+    temporaryInput.style.position = 'fixed';
+    temporaryInput.style.left = '-9999px';
+    document.body.append(temporaryInput);
+    temporaryInput.select();
+    const copied = document.execCommand?.('copy') || false;
+    temporaryInput.remove();
+    if (!copied) {
+      showNotice('copyPuzzleIdFailed', 'error');
+      return;
+    }
+  }
+  showNotice('copiedPuzzleId', 'success');
+}
+
+function renderPuzzleQr() {
+  const container = $('#puzzle-qr');
+  container.replaceChildren();
+  try {
+    container.innerHTML = createPuzzleQrSvg(createPuzzlePageUrl(state.puzzleId));
+  } catch (error) {
+    showNotice('qrCodeError', 'error');
+  }
+}
+
+function copyPuzzleIdOnSelection() {
+  const idElement = $('#puzzle-id');
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
+  if (!idElement.contains(selection.anchorNode) || !idElement.contains(selection.focusNode)) return;
+  void copyPuzzleId();
+}
+
+function togglePuzzleQr() {
+  const panel = $('#puzzle-qr-panel');
+  const button = $('#toggle-puzzle-qr');
+  const isShowing = panel.classList.toggle('hidden') === false;
+  button.setAttribute('aria-expanded', String(isShowing));
+  if (isShowing) renderPuzzleQr();
+}
+
+function createPuzzle(seed, rules, preparedPuzzle = null, preservedPuzzleId = null) {
   state.seed = seed >>> 0;
   state.mode = rules.mode;
   state.puzzle = preparedPuzzle || buildPuzzleFromRules(state.seed, rules);
   state.puzzle.userEntries = {};
-  state.puzzleId = encodePuzzleId(state.seed, rules);
+  state.puzzleId = preservedPuzzleId || encodePuzzleId(state.seed, rules);
   state.timerElapsed = 0;
   state.timerStartedAt = performance.now();
   state.timerCompleted = false;
@@ -686,24 +770,30 @@ function generate() {
 
 function reproducePuzzle() {
   try {
-    const { seed, rules, puzzle } = buildPuzzleFromId($('#puzzle-id-input').value);
-    persist();
-    setMode(rules.mode);
-    if (rules.mode === 'math') {
-      $('#range-max').value = rules.max;
-      document.querySelectorAll('.operator-options input').forEach((input) => { input.checked = rules.operators.includes(input.value); });
-      $('#equation-count').value = rules.count;
-      $('#difficulty').value = rules.difficulty;
-    } else {
-      $('#word-list').value = rules.entries.map((entry) => `${entry.word} ${entry.clue}`).join('\n');
-      $('#prefill').value = String(rules.prefill);
-      $('#word-bank').checked = rules.showBank;
-    }
-    createPuzzle(seed, rules, puzzle);
-    $('#puzzle-id-input').value = '';
+    const enteredPuzzleId = $('#puzzle-id-input').value.trim();
+    loadPuzzleFromId(enteredPuzzleId, { clearInput: true });
   } catch (error) {
     showNotice('invalidPuzzleId', 'error');
   }
+}
+
+function loadPuzzleFromId(puzzleId, { clearInput = false } = {}) {
+  const normalizedId = puzzleId.trim();
+  const { seed, rules, puzzle } = buildPuzzleFromId(normalizedId);
+  persist();
+  setMode(rules.mode);
+  if (rules.mode === 'math') {
+    $('#range-max').value = rules.max;
+    document.querySelectorAll('.operator-options input').forEach((input) => { input.checked = rules.operators.includes(input.value); });
+    $('#equation-count').value = rules.count;
+    $('#difficulty').value = rules.difficulty;
+  } else {
+    $('#word-list').value = rules.entries.map((entry) => `${entry.word} ${entry.clue}`).join('\n');
+    $('#prefill').value = String(rules.prefill);
+    $('#word-bank').checked = rules.showBank;
+  }
+  createPuzzle(seed, rules, puzzle, normalizedId);
+  if (clearInput) $('#puzzle-id-input').value = '';
 }
 
 function collectEntries() {
@@ -932,12 +1022,28 @@ function printPuzzle(kind) {
       const cellSize = Math.min(8, 186 / columns, 205 / rows);
       page.style.setProperty('--print-cell-size', `${cellSize}mm`);
     }
+    const header = document.createElement('header');
+    header.className = 'print-header';
     const title = document.createElement('h1');
     title.textContent = answers ? t('answerTitle') : t('printTitle');
+    const qr = document.createElement('div');
+    qr.className = 'print-qr';
+    qr.setAttribute('role', 'img');
+    qr.setAttribute('aria-label', t('qrCodeLabel'));
+    try {
+      qr.innerHTML = createPuzzleQrSvg(createPuzzlePageUrl(state.puzzleId));
+      const qrCaption = document.createElement('span');
+      qrCaption.className = 'print-qr-caption';
+      qrCaption.textContent = t('printQrCaption');
+      qr.append(qrCaption);
+    } catch (error) {
+      showNotice('qrCodeError', 'error');
+    }
+    header.append(title, qr);
     const summary = document.createElement('div');
     summary.className = 'print-summary';
-    summary.textContent = `${t(state.puzzle.kind === 'math' ? 'mathPuzzle' : 'wordPuzzle')} · ${t('puzzleId')} ${state.puzzleId || historyId(state.seed)}${answers ? t('answerReference') : ''}`;
-    page.append(title, summary);
+    summary.textContent = `${t(state.puzzle.kind === 'math' ? 'mathPuzzle' : 'wordPuzzle')}${answers ? t('answerReference') : ''}`;
+    page.append(header, summary);
     const clone = state.puzzle.kind === 'math' ? renderMath(state.puzzle) : renderWords(state.puzzle);
     clone.querySelectorAll('input[data-answer]').forEach((input) => {
       if (answers) input.replaceWith(document.createTextNode(input.dataset.answer));
@@ -991,7 +1097,7 @@ function closePrintPreview() {
 
 function printPreviewNow() {
   state.printTitleBackup = document.title;
-  document.title = historyId(state.seed);
+  document.title = t('printTitle');
   window.print();
 }
 
@@ -1007,7 +1113,7 @@ function fitPrintPage(page, content, answers) {
   const pageWidthMm = 202;
   const pageHeightMm = 289;
   const contentWidthMm = pageWidthMm;
-  const headerHeightMm = 24;
+  const headerHeightMm = 30;
   const answerBannerHeightMm = answers ? 14 : 0;
   const contentHeightMm = pageHeightMm - headerHeightMm - answerBannerHeightMm;
   const clueAreaHeightMm = state.puzzle.kind === 'words' ? 74 : 0;
@@ -1035,6 +1141,9 @@ document.querySelectorAll('.mode-button').forEach((button) => button.addEventLis
 $('#generate').addEventListener('click', generate);
 $('#history-import').addEventListener('click', importHistoryPuzzle);
 $('#puzzle-id-import').addEventListener('click', reproducePuzzle);
+$('#copy-puzzle-id').addEventListener('click', copyPuzzleId);
+$('#puzzle-id').addEventListener('mouseup', copyPuzzleIdOnSelection);
+$('#toggle-puzzle-qr').addEventListener('click', togglePuzzleQr);
 $('#puzzle-id-input').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') reproducePuzzle();
 });
@@ -1110,4 +1219,12 @@ let savedLanguage = 'zh-CN';
 try { savedLanguage = localStorage.getItem(localeStorageKey) || 'zh-CN'; } catch { /* Use the default locale when storage is unavailable. */ }
 applyLanguage(savedLanguage);
 restoreSaved();
+const sharedPuzzleId = new URLSearchParams(window.location.search).get('puzzle');
+if (sharedPuzzleId) {
+  try {
+    loadPuzzleFromId(sharedPuzzleId);
+  } catch (error) {
+    showNotice('invalidPuzzleId', 'error');
+  }
+}
 }
