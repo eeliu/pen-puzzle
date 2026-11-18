@@ -97,3 +97,74 @@ body.focus-mode .focus-mode-button{color:var(--green);border-color:#d5e0d0;backg
   .print-sheet .clues li{margin-bottom:1mm}
   .print-sheet .word-bank-note{grid-column:1/-1;margin-top:0}
 }
+
+/* Screen-only A4 proofing frame. The print media rules below remove the frame. */
+body.print-preview-open{overflow:hidden}
+body.print-preview-open #print-root{
+  display:flex;
+  position:fixed;
+  z-index:1000;
+  inset:0;
+  overflow:auto;
+  align-items:center;
+  justify-content:flex-start;
+  flex-direction:column;
+  gap:18px;
+  padding:78px 24px 32px;
+  background:rgba(30,34,29,.78);
+}
+.print-preview-actions{
+  position:fixed;
+  z-index:1001;
+  top:0;
+  left:0;
+  right:0;
+  min-height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:8px 18px;
+  background:#fff;
+  box-shadow:0 2px 12px #0002;
+}
+.print-preview-actions>div{display:flex;flex-direction:column;gap:3px;margin-right:12px}
+.print-preview-actions strong{font:700 14px Manrope,sans-serif;color:#30372e}
+.print-preview-actions span{font-size:11px;color:#747970}
+.print-preview-actions button{border:1px solid #dfe3d9;border-radius:7px;padding:9px 13px;background:#fff;color:#424940}
+.print-preview-actions .print-preview-primary{background:var(--green);border-color:var(--green);color:#fff}
+body.print-preview-open .print-sheet{
+  flex:none;
+  width:210mm;
+  height:297mm;
+  padding:8mm;
+  border:1px dashed #91a28b;
+  background:#fff;
+  box-shadow:0 8px 32px #0004;
+  overflow:hidden;
+}
+body.print-preview-open .print-content{width:100%;min-height:0;flex:1;display:flex;align-items:center;justify-content:center}
+body.print-preview-open .print-content .grid-wrap{max-width:none;max-height:none;overflow:visible}
+body.print-preview-open .print-sheet .arithmetic-grid td,
+body.print-preview-open .print-sheet .word-grid td{width:var(--print-cell-size);height:var(--print-cell-size)}
+body.print-preview-open .print-sheet .arithmetic-grid td{font-size:clamp(11pt,calc(var(--print-cell-size)*.65),28pt)}
+body.print-preview-open .print-sheet .arithmetic-grid td.operator-cell{font-size:clamp(10pt,calc(var(--print-cell-size)*.48),20pt)}
+body.print-preview-open .print-sheet .arithmetic-grid input{font-size:clamp(11pt,calc(var(--print-cell-size)*.65),28pt)}
+body.print-preview-open .print-watermark{display:none}
+@media(max-width:760px){
+  body.print-preview-open #print-root{justify-content:flex-start;align-items:flex-start;padding-left:12px;padding-right:12px}
+  .print-preview-actions{justify-content:flex-end;gap:6px;padding:7px}
+  .print-preview-actions>div{margin-right:auto}
+  .print-preview-actions strong{font-size:12px}
+  .print-preview-actions span{font-size:9px}
+  .print-preview-actions button{padding:8px;font-size:10px}
+  body.print-preview-open .print-sheet{transform-origin:top left}
+}
+@media print{
+  .print-preview-actions{display:none!important}
+  body.print-preview-open #print-root{position:static;display:block;overflow:visible;padding:0;background:white}
+  body.print-preview-open .print-sheet{border:0;box-shadow:none;padding:0}
+  body.print-preview-open .print-sheet .arithmetic-grid td{font-size:clamp(11pt,calc(var(--print-cell-size)*.65),28pt)}
+  body.print-preview-open .print-sheet .arithmetic-grid td.operator-cell{font-size:clamp(10pt,calc(var(--print-cell-size)*.48),20pt)}
+  body.print-preview-open .print-sheet .arithmetic-grid input{font-size:clamp(11pt,calc(var(--print-cell-size)*.65),28pt)}
+}

@@ -52,6 +52,10 @@ const translations = {
     printPuzzle:'打印谜题',
     printAnswers:'打印答案',
     printBoth:'谜题 + 答案',
+    printPreviewTitle:'A4 打印预览',
+    printPreviewHint:'浅色边框为 A4 纸张边界，不会打印。',
+    printNow:'打印',
+    closePreview:'关闭预览',
     metaEmpty:'设置后生成一份新谜题',
     emptyTitle:'尚未生成题目',
     emptyText:'选择左侧设置，<br />然后点击“生成新谜题”。',
@@ -150,6 +154,10 @@ const translations = {
     printPuzzle:'Print puzzle',
     printAnswers:'Print answers',
     printBoth:'Puzzle + answers',
+    printPreviewTitle:'A4 print preview',
+    printPreviewHint:'The light outline marks the A4 page and will not print.',
+    printNow:'Print',
+    closePreview:'Close preview',
     metaEmpty:'Choose settings and generate a puzzle',
     emptyTitle:'No puzzle generated',
     emptyText:'Choose settings on the left,<br />then select “Generate puzzle.”',
@@ -248,6 +256,10 @@ const translations = {
     printPuzzle:'퍼즐 인쇄',
     printAnswers:'정답 인쇄',
     printBoth:'퍼즐 + 정답',
+    printPreviewTitle:'A4 인쇄 미리보기',
+    printPreviewHint:'밝은 테두리는 A4 용지 경계이며 인쇄되지 않습니다.',
+    printNow:'인쇄',
+    closePreview:'미리보기 닫기',
     metaEmpty:'설정을 선택한 뒤 퍼즐을 만드세요',
     emptyTitle:'퍼즐이 생성되지 않았습니다',
     emptyText:'왼쪽에서 설정을 선택한 뒤<br />“새 퍼즐 만들기”를 누르세요.',
@@ -346,6 +358,10 @@ const translations = {
     printPuzzle:'パズルを印刷',
     printAnswers:'答えを印刷',
     printBoth:'パズル + 答え',
+    printPreviewTitle:'A4 印刷プレビュー',
+    printPreviewHint:'薄い枠線は A4 用紙の境界で、印刷されません。',
+    printNow:'印刷',
+    closePreview:'プレビューを閉じる',
     metaEmpty:'設定を選んでパズルを作成してください',
     emptyTitle:'パズルはまだありません',
     emptyText:'左側で設定を選び、<br />「新しいパズルを作成」を押してください。',
@@ -898,6 +914,34 @@ function printPuzzle(kind) {
   };
   if (kind === 'puzzle' || kind === 'both') root.append(sheet(false));
   if (kind === 'answers' || kind === 'both') root.append(sheet(true));
+  root.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('print-preview-open');
+  root.scrollTop = 0;
+  root.scrollLeft = 0;
+  const actions = document.createElement('div');
+  actions.className = 'print-preview-actions';
+  actions.innerHTML = `<div><strong>${t('printPreviewTitle')}</strong><span>${t('printPreviewHint')}</span></div>`;
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.textContent = t('closePreview');
+  closeButton.addEventListener('click', closePrintPreview);
+  const printButton = document.createElement('button');
+  printButton.type = 'button';
+  printButton.className = 'print-preview-primary';
+  printButton.textContent = t('printNow');
+  printButton.addEventListener('click', printPreviewNow);
+  actions.append(closeButton, printButton);
+  root.prepend(actions);
+}
+
+function closePrintPreview() {
+  document.body.classList.remove('print-preview-open');
+  const root = $('#print-root');
+  root.setAttribute('aria-hidden', 'true');
+  root.replaceChildren();
+}
+
+function printPreviewNow() {
   state.printTitleBackup = document.title;
   document.title = state.historyRecordId || historyId(state.seed);
   window.print();
@@ -914,7 +958,7 @@ function fitPrintPage(page, content, answers) {
   // A4 with 8 mm margins leaves 194 x 281 mm for the sheet.
   const pageWidthMm = 194;
   const pageHeightMm = 281;
-  const contentWidthMm = pageWidthMm - 6;
+  const contentWidthMm = pageWidthMm;
   const headerHeightMm = 24;
   const answerBannerHeightMm = answers ? 14 : 0;
   const contentHeightMm = pageHeightMm - headerHeightMm - answerBannerHeightMm;
@@ -999,11 +1043,16 @@ document.querySelectorAll('[data-print]').forEach((button) => button.addEventLis
   printPuzzle(button.dataset.print);
 }));
 window.addEventListener('afterprint', () => {
+  document.body.classList.remove('print-preview-open');
+  $('#print-root').setAttribute('aria-hidden', 'true');
   $('#print-root').replaceChildren();
   if (state.printTitleBackup !== null) {
     document.title = state.printTitleBackup;
     state.printTitleBackup = null;
   }
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && document.body.classList.contains('print-preview-open')) closePrintPreview();
 });
 let savedLanguage = 'zh-CN';
 try { savedLanguage = localStorage.getItem(localeStorageKey) || 'zh-CN'; } catch { /* Use the default locale when storage is unavailable. */ }
