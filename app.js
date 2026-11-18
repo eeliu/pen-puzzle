@@ -1,4 +1,5 @@
-import { buildArithmeticPuzzle, buildWordPuzzle, newSeed, parseWords } from './puzzle-core.js';
+import { newSeed, parseWords } from './puzzle-core.js';
+import { buildPuzzleFromId, buildPuzzleFromRules, encodePuzzleId } from './puzzle-id.js';
 
 const $ = (selector) => document.querySelector(selector);
 const translations = {
@@ -40,6 +41,10 @@ const translations = {
     wordHint:'单词谜题的线索可能有多种解释，答案检查依据你输入的单词。',
     generate:'生成新谜题',
     puzzleId:'谜题编号',
+    puzzleIdHint:'编号包含种子和规则，可复制分享后复现。',
+    puzzleIdPlaceholder:'粘贴新编号',
+    reproducePuzzle:'导入并生成',
+    invalidPuzzleId:'编号无效或版本不兼容，请检查后重试。',
     waiting:'等待生成',
     workspace:'谜题工作区',
     currentPuzzle:'当前谜题',
@@ -142,6 +147,10 @@ const translations = {
     wordHint:'Clues can have multiple interpretations. Answers are checked against the words you enter.',
     generate:'Generate puzzle',
     puzzleId:'Puzzle ID',
+    puzzleIdHint:'The ID includes the seed and rules. Copy it to reproduce this puzzle.',
+    puzzleIdPlaceholder:'Paste a new puzzle ID',
+    reproducePuzzle:'Import and generate',
+    invalidPuzzleId:'This ID is invalid or uses an unsupported version. Check it and try again.',
     waiting:'Not generated',
     workspace:'Puzzle workspace',
     currentPuzzle:'Current puzzle',
@@ -244,6 +253,10 @@ const translations = {
     wordHint:'힌트에는 여러 해석이 있을 수 있습니다. 정답은 입력한 단어를 기준으로 확인합니다.',
     generate:'새 퍼즐 만들기',
     puzzleId:'퍼즐 번호',
+    puzzleIdHint:'번호에 시드와 규칙이 포함됩니다. 복사해 공유하면 같은 퍼즐을 다시 만들 수 있습니다.',
+    puzzleIdPlaceholder:'새 퍼즐 번호 붙여넣기',
+    reproducePuzzle:'가져와서 생성',
+    invalidPuzzleId:'번호가 잘못되었거나 지원하지 않는 버전입니다. 확인 후 다시 시도하세요.',
     waiting:'생성 대기 중',
     workspace:'퍼즐 작업 공간',
     currentPuzzle:'현재 퍼즐',
@@ -346,6 +359,10 @@ const translations = {
     wordHint:'ヒントには複数の解釈があります。入力した単語をもとに答えを確認します。',
     generate:'新しいパズルを作成',
     puzzleId:'パズル番号',
+    puzzleIdHint:'番号にはシードとルールが含まれます。コピーして共有すると同じパズルを再現できます。',
+    puzzleIdPlaceholder:'新しいパズル番号を貼り付け',
+    reproducePuzzle:'読み込んで作成',
+    invalidPuzzleId:'番号が無効か、未対応のバージョンです。確認してもう一度お試しください。',
     waiting:'未作成',
     workspace:'パズル作業エリア',
     currentPuzzle:'現在のパズル',
@@ -416,7 +433,7 @@ translations['zh-CN'].brandHome = 'Pen and Puzzle 首页';
 translations.en.brandHome = 'Pen and Puzzle home';
 translations.ko.brandHome = 'Pen and Puzzle 홈';
 translations.ja.brandHome = 'Pen and Puzzle ホーム';
-const state = { mode: 'math', puzzle: null, seed: '', language: 'zh-CN', notice: null, timerElapsed: 0, timerStartedAt: null, timerCompleted: false, historyCreatedAt: null, historyRecordId: null, printTitleBackup: null };
+const state = { mode: 'math', puzzle: null, seed: '', puzzleId: '', language: 'zh-CN', notice: null, timerElapsed: 0, timerStartedAt: null, timerCompleted: false, historyCreatedAt: null, historyRecordId: null, printTitleBackup: null };
 const historyDatabaseName = 'pen-puzzle-history';
 const historyStoreName = 'puzzles';
 let historyDatabasePromise;
@@ -440,6 +457,9 @@ function applyLanguage(language) {
   });
   document.querySelectorAll('[data-i18n-title]').forEach((element) => {
     element.setAttribute('title', t(element.dataset.i18nTitle));
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
+    element.setAttribute('placeholder', t(element.dataset.i18nPlaceholder));
   });
   const focusModeButton = $('#focus-mode');
   if (focusModeButton) {
@@ -598,7 +618,7 @@ function renderPuzzle() {
   $('#meta-difficulty').textContent = puzzle.difficulty ? t(`${puzzle.difficulty}Name`) : t('customList');
   updateTimerDisplay();
   $('#footer-id').textContent = `P&P — ${state.seed.toString(16).toUpperCase()}`;
-  $('#puzzle-id').textContent = state.seed.toString(16).toUpperCase().padStart(8, '0');
+  $('#puzzle-id').textContent = state.puzzleId || state.seed.toString(16).toUpperCase().padStart(8, '0');
   if (puzzle.kind === 'math' && puzzle.expressions.length < puzzle.requestedCount) {
     showNotice('fewEquations', 'error', { count: puzzle.expressions.length });
   } else if (puzzle.kind === 'math' && puzzle.blankCount > puzzle.targetBlankCount) {
@@ -614,49 +634,75 @@ function showNotice(key, type = 'success', values = {}) {
   notice.className = key ? `notice ${type}` : 'notice hidden';
 }
 
+function createPuzzle(seed, rules, preparedPuzzle = null) {
+  state.seed = seed >>> 0;
+  state.mode = rules.mode;
+  state.puzzle = preparedPuzzle || buildPuzzleFromRules(state.seed, rules);
+  state.puzzle.userEntries = {};
+  state.puzzleId = encodePuzzleId(state.seed, rules);
+  state.timerElapsed = 0;
+  state.timerStartedAt = performance.now();
+  state.timerCompleted = false;
+  state.historyCreatedAt = new Date().toISOString();
+  state.historyRecordId = `${state.puzzleId}-${Date.now().toString(36)}`;
+  renderPuzzle();
+  persist().then(refreshHistoryOptions);
+}
+
 function generate() {
   const button = $('#generate');
-  const generationStartedAt = performance.now();
   persist();
   button.disabled = true;
   try {
     const seed = newSeed();
-    state.seed = seed;
     if (state.mode === 'math') {
       const rangeInput = $('#range-max');
       if (!rangeInput.reportValidity()) return;
       const max = Number(rangeInput.value);
-      const enabled = [...document.querySelectorAll('.operator-options input:checked')].map((input) => input.value);
-      if (!enabled.length) {
+      const operators = [...document.querySelectorAll('.operator-options input:checked')].map((input) => input.value);
+      if (!operators.length) {
         showNotice('needOperator', 'error');
         return;
       }
       const requestedCount = Number.parseInt($('#equation-count').value, 10) || 6;
-      const equationCount = Math.max(4, Math.min(40, requestedCount));
-      $('#equation-count').value = equationCount;
-      state.puzzle = buildArithmeticPuzzle(seed, max, enabled, equationCount, $('#difficulty').value);
-      state.puzzle.userEntries = {};
+      const count = Math.max(4, Math.min(40, requestedCount));
+      $('#equation-count').value = count;
+      createPuzzle(seed, { mode: 'math', max, operators, count, difficulty: $('#difficulty').value });
     } else {
       const entries = parseWords($('#word-list').value);
       if (entries.length < 2) {
         showNotice('needWords', 'error');
         return;
       }
-      state.puzzle = buildWordPuzzle(seed, entries, Number($('#prefill').value), $('#word-bank').checked);
-      state.puzzle.userEntries = {};
+      createPuzzle(seed, { mode: 'words', entries, prefill: Number($('#prefill').value), showBank: $('#word-bank').checked });
     }
-    state.timerElapsed = 0;
-    state.timerStartedAt = generationStartedAt;
-    state.timerCompleted = false;
-    state.historyCreatedAt = new Date().toISOString();
-    state.historyRecordId = `${historyId(seed)}-${Date.now().toString(36)}`;
-    renderPuzzle();
-    persist().then(refreshHistoryOptions);
   } catch (error) {
     console.error('Puzzle generation failed:', error);
     showNotice('generationError', 'error');
   } finally {
     button.disabled = false;
+  }
+}
+
+function reproducePuzzle() {
+  try {
+    const { seed, rules, puzzle } = buildPuzzleFromId($('#puzzle-id-input').value);
+    persist();
+    setMode(rules.mode);
+    if (rules.mode === 'math') {
+      $('#range-max').value = rules.max;
+      document.querySelectorAll('.operator-options input').forEach((input) => { input.checked = rules.operators.includes(input.value); });
+      $('#equation-count').value = rules.count;
+      $('#difficulty').value = rules.difficulty;
+    } else {
+      $('#word-list').value = rules.entries.map((entry) => `${entry.word} ${entry.clue}`).join('\n');
+      $('#prefill').value = String(rules.prefill);
+      $('#word-bank').checked = rules.showBank;
+    }
+    createPuzzle(seed, rules, puzzle);
+    $('#puzzle-id-input').value = '';
+  } catch (error) {
+    showNotice('invalidPuzzleId', 'error');
   }
 }
 
@@ -789,7 +835,7 @@ function refreshHistoryOptions() {
       option.value = record.id;
       const puzzleName = t(record.puzzle.kind === 'math' ? 'mathTitle' : 'wordTitle');
       const createdAt = record.createdAt ? new Date(record.createdAt) : new Date(0);
-      option.textContent = `${record.id} · ${puzzleName} · ${dateFormatter.format(createdAt)}`;
+      option.textContent = `${historyId(record.seed)} · ${puzzleName} · ${dateFormatter.format(createdAt)}`;
       select.append(option);
     }
     if (records.some((record) => record.id === selectedId)) select.value = selectedId;
@@ -812,6 +858,7 @@ function persist() {
   const record = {
     id: state.historyRecordId || historyId(state.seed),
     seed: state.seed,
+    puzzleId: state.puzzleId,
     mode: state.mode,
     puzzle: serializePuzzle(state.puzzle),
     timerElapsed: state.timerElapsed,
@@ -846,6 +893,7 @@ function activateHistoryRecord(record, { resetTimer = false } = {}) {
   if (puzzle.prefilled) puzzle.prefilled = new Set(puzzle.prefilled);
   if (puzzle.starts) puzzle.starts = new Map(puzzle.starts);
   state.seed = record.seed;
+  state.puzzleId = record.puzzleId || historyId(record.seed);
   state.mode = record.mode;
   state.puzzle = puzzle;
   state.timerElapsed = resetTimer ? 0 : Number(record.timerElapsed) || 0;
@@ -888,7 +936,7 @@ function printPuzzle(kind) {
     title.textContent = answers ? t('answerTitle') : t('printTitle');
     const summary = document.createElement('div');
     summary.className = 'print-summary';
-    summary.textContent = `${t(state.puzzle.kind === 'math' ? 'mathPuzzle' : 'wordPuzzle')} · ${t('puzzleId')} ${state.seed.toString(16).toUpperCase()}${answers ? t('answerReference') : ''}`;
+    summary.textContent = `${t(state.puzzle.kind === 'math' ? 'mathPuzzle' : 'wordPuzzle')} · ${t('puzzleId')} ${state.puzzleId || historyId(state.seed)}${answers ? t('answerReference') : ''}`;
     page.append(title, summary);
     const clone = state.puzzle.kind === 'math' ? renderMath(state.puzzle) : renderWords(state.puzzle);
     clone.querySelectorAll('input[data-answer]').forEach((input) => {
@@ -943,7 +991,7 @@ function closePrintPreview() {
 
 function printPreviewNow() {
   state.printTitleBackup = document.title;
-  document.title = state.historyRecordId || historyId(state.seed);
+  document.title = historyId(state.seed);
   window.print();
 }
 
@@ -986,6 +1034,10 @@ if (typeof document !== 'undefined') {
 document.querySelectorAll('.mode-button').forEach((button) => button.addEventListener('click', () => setMode(button.dataset.mode)));
 $('#generate').addEventListener('click', generate);
 $('#history-import').addEventListener('click', importHistoryPuzzle);
+$('#puzzle-id-import').addEventListener('click', reproducePuzzle);
+$('#puzzle-id-input').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') reproducePuzzle();
+});
 $('#puzzle-content').addEventListener('input', (event) => {
   if (event.target.matches('input[data-key]')) {
     if (state.puzzle?.kind === 'words') event.target.value = event.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(-1);
