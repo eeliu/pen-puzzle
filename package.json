@@ -2,6 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "privacy:probe": "node scripts/privacy-probe.mjs"
   }
 }
