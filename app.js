@@ -1,5 +1,6 @@
 import { newSeed, parseWords } from './puzzle-core.js';
 import { buildPuzzleFromId, buildPuzzleFromRules, encodePuzzleId } from './puzzle-id.js';
+import { createPuzzleQrSvg } from './puzzle-qr.js';
 
 const $ = (selector) => document.querySelector(selector);
 const translations = {
@@ -42,6 +43,13 @@ const translations = {
     generate:'生成新谜题',
     puzzleId:'谜题编号',
     puzzleIdHint:'编号包含种子和规则，可复制分享后复现。',
+    copyPuzzleId:'复制编号',
+    showPuzzleQr:'显示二维码',
+    qrCodeLabel:'谜题编号二维码',
+    qrCodeHint:'用手机相机扫码读取编号。二维码在本机生成。',
+    copiedPuzzleId:'编号已复制。',
+    copyPuzzleIdFailed:'复制失败，请选择编号手动复制。',
+    qrCodeError:'二维码生成失败，请检查编号长度。',
     puzzleIdPlaceholder:'粘贴新编号',
     reproducePuzzle:'导入并生成',
     invalidPuzzleId:'编号无效或版本不兼容，请检查后重试。',
@@ -148,6 +156,13 @@ const translations = {
     generate:'Generate puzzle',
     puzzleId:'Puzzle ID',
     puzzleIdHint:'The ID includes the seed and rules. Copy it to reproduce this puzzle.',
+    copyPuzzleId:'Copy ID',
+    showPuzzleQr:'Show QR code',
+    qrCodeLabel:'Puzzle ID QR code',
+    qrCodeHint:'Scan with your phone camera. The QR code is generated on this device.',
+    copiedPuzzleId:'Puzzle ID copied.',
+    copyPuzzleIdFailed:'Could not copy. Select the ID and copy it manually.',
+    qrCodeError:'Could not generate a QR code. Check the ID length.',
     puzzleIdPlaceholder:'Paste a new puzzle ID',
     reproducePuzzle:'Import and generate',
     invalidPuzzleId:'This ID is invalid or uses an unsupported version. Check it and try again.',
@@ -254,6 +269,13 @@ const translations = {
     generate:'새 퍼즐 만들기',
     puzzleId:'퍼즐 번호',
     puzzleIdHint:'번호에 시드와 규칙이 포함됩니다. 복사해 공유하면 같은 퍼즐을 다시 만들 수 있습니다.',
+    copyPuzzleId:'번호 복사',
+    showPuzzleQr:'QR 코드 보기',
+    qrCodeLabel:'퍼즐 번호 QR 코드',
+    qrCodeHint:'휴대폰 카메라로 스캔하세요. QR 코드는 이 기기에서 생성됩니다.',
+    copiedPuzzleId:'퍼즐 번호를 복사했습니다.',
+    copyPuzzleIdFailed:'복사할 수 없습니다. 번호를 선택해 직접 복사하세요.',
+    qrCodeError:'QR 코드를 만들 수 없습니다. 번호 길이를 확인하세요.',
     puzzleIdPlaceholder:'새 퍼즐 번호 붙여넣기',
     reproducePuzzle:'가져와서 생성',
     invalidPuzzleId:'번호가 잘못되었거나 지원하지 않는 버전입니다. 확인 후 다시 시도하세요.',
@@ -360,6 +382,13 @@ const translations = {
     generate:'新しいパズルを作成',
     puzzleId:'パズル番号',
     puzzleIdHint:'番号にはシードとルールが含まれます。コピーして共有すると同じパズルを再現できます。',
+    copyPuzzleId:'番号をコピー',
+    showPuzzleQr:'QRコードを表示',
+    qrCodeLabel:'パズル番号のQRコード',
+    qrCodeHint:'スマートフォンのカメラで読み取れます。QRコードはこの端末で生成されます。',
+    copiedPuzzleId:'番号をコピーしました。',
+    copyPuzzleIdFailed:'コピーできません。番号を選択して手動でコピーしてください。',
+    qrCodeError:'QRコードを生成できません。番号の長さを確認してください。',
     puzzleIdPlaceholder:'新しいパズル番号を貼り付け',
     reproducePuzzle:'読み込んで作成',
     invalidPuzzleId:'番号が無効か、未対応のバージョンです。確認してもう一度お試しください。',
@@ -619,12 +648,15 @@ function renderPuzzle() {
   updateTimerDisplay();
   $('#footer-id').textContent = `P&P — ${state.seed.toString(16).toUpperCase()}`;
   $('#puzzle-id').textContent = state.puzzleId || state.seed.toString(16).toUpperCase().padStart(8, '0');
+  $('#copy-puzzle-id').disabled = false;
+  $('#toggle-puzzle-qr').disabled = false;
   if (puzzle.kind === 'math' && puzzle.expressions.length < puzzle.requestedCount) {
     showNotice('fewEquations', 'error', { count: puzzle.expressions.length });
   } else if (puzzle.kind === 'math' && puzzle.blankCount > puzzle.targetBlankCount) {
     showNotice('extraBlanks', 'success', { count: puzzle.blankCount, target: puzzle.targetBlankCount });
   } else if (puzzle.unplaced?.length) showNotice('unplacedNotice', 'error', { count: puzzle.unplaced.length });
   else showNotice('', 'success');
+  if (!$('#puzzle-qr-panel').classList.contains('hidden')) renderPuzzleQr();
 }
 
 function showNotice(key, type = 'success', values = {}) {
@@ -632,6 +664,46 @@ function showNotice(key, type = 'success', values = {}) {
   state.notice = key ? { key, type, values } : null;
   notice.textContent = key ? t(key, values) : '';
   notice.className = key ? `notice ${type}` : 'notice hidden';
+}
+
+async function copyPuzzleId() {
+  if (!state.puzzleId) return;
+  try {
+    await navigator.clipboard.writeText(state.puzzleId);
+  } catch {
+    const temporaryInput = document.createElement('textarea');
+    temporaryInput.value = state.puzzleId;
+    temporaryInput.setAttribute('readonly', '');
+    temporaryInput.style.position = 'fixed';
+    temporaryInput.style.left = '-9999px';
+    document.body.append(temporaryInput);
+    temporaryInput.select();
+    const copied = document.execCommand?.('copy') || false;
+    temporaryInput.remove();
+    if (!copied) {
+      showNotice('copyPuzzleIdFailed', 'error');
+      return;
+    }
+  }
+  showNotice('copiedPuzzleId', 'success');
+}
+
+function renderPuzzleQr() {
+  const container = $('#puzzle-qr');
+  container.replaceChildren();
+  try {
+    container.innerHTML = createPuzzleQrSvg(state.puzzleId);
+  } catch (error) {
+    showNotice('qrCodeError', 'error');
+  }
+}
+
+function togglePuzzleQr() {
+  const panel = $('#puzzle-qr-panel');
+  const button = $('#toggle-puzzle-qr');
+  const isShowing = panel.classList.toggle('hidden') === false;
+  button.setAttribute('aria-expanded', String(isShowing));
+  if (isShowing) renderPuzzleQr();
 }
 
 function createPuzzle(seed, rules, preparedPuzzle = null, preservedPuzzleId = null) {
@@ -1036,6 +1108,8 @@ document.querySelectorAll('.mode-button').forEach((button) => button.addEventLis
 $('#generate').addEventListener('click', generate);
 $('#history-import').addEventListener('click', importHistoryPuzzle);
 $('#puzzle-id-import').addEventListener('click', reproducePuzzle);
+$('#copy-puzzle-id').addEventListener('click', copyPuzzleId);
+$('#toggle-puzzle-qr').addEventListener('click', togglePuzzleQr);
 $('#puzzle-id-input').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') reproducePuzzle();
 });
