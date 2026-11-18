@@ -702,6 +702,14 @@ function renderPuzzleQr() {
   }
 }
 
+function copyPuzzleIdOnSelection() {
+  const idElement = $('#puzzle-id');
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
+  if (!idElement.contains(selection.anchorNode) || !idElement.contains(selection.focusNode)) return;
+  void copyPuzzleId();
+}
+
 function togglePuzzleQr() {
   const panel = $('#puzzle-qr-panel');
   const button = $('#toggle-puzzle-qr');
@@ -1134,6 +1142,7 @@ $('#generate').addEventListener('click', generate);
 $('#history-import').addEventListener('click', importHistoryPuzzle);
 $('#puzzle-id-import').addEventListener('click', reproducePuzzle);
 $('#copy-puzzle-id').addEventListener('click', copyPuzzleId);
+$('#puzzle-id').addEventListener('mouseup', copyPuzzleIdOnSelection);
 $('#toggle-puzzle-qr').addEventListener('click', togglePuzzleQr);
 $('#puzzle-id-input').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') reproducePuzzle();
