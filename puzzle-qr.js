@@ -18,5 +18,7 @@ export function createPuzzleQrSvg(puzzleId) {
   const code = qrcode(0, 'M');
   code.addData(puzzleId, 'Byte');
   code.make();
-  return code.createSvgTag({ cellSize: 5, margin: 4, scalable: true });
+  const cellSize = 5;
+  // The quiet zone must span four modules on every side.
+  return code.createSvgTag({ cellSize, margin: cellSize * 4, scalable: true });
 }

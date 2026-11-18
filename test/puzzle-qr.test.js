@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import qrcode from '../vendor/qrcode-generator.mjs';
 import { createPuzzlePageUrl, createPuzzleQrSvg } from '../puzzle-qr.js';
 
 test('puzzle page URL opens the published page with the puzzle ID', () => {
@@ -27,6 +28,21 @@ test('puzzle ID QR renderer returns a scalable SVG', () => {
   assert.match(svg, /^<svg\b/);
   assert.match(svg, /viewBox=/);
   assert.match(svg, /<path\b/);
+});
+
+test('puzzle QR SVG includes a four-module quiet zone on every side', () => {
+  const puzzleId = 'PP2-example-puzzle-id';
+  const code = qrcode(0, 'M');
+  code.addData(puzzleId, 'Byte');
+  code.make();
+
+  const svg = createPuzzleQrSvg(puzzleId);
+  const viewBox = svg.match(/viewBox="0 0 (\d+) (\d+)"/);
+  const expectedSize = (code.getModuleCount() + 8) * 5;
+
+  assert.ok(viewBox, 'QR SVG should have a square viewBox');
+  assert.equal(Number(viewBox[1]), expectedSize);
+  assert.equal(Number(viewBox[2]), expectedSize);
 });
 
 test('puzzle ID QR renderer supports longer imported IDs', () => {
