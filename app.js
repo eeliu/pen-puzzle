@@ -470,6 +470,7 @@ const state = { mode: 'math', puzzle: null, seed: '', puzzleId: '', language: 'z
 const historyDatabaseName = 'pen-puzzle-history';
 const historyStoreName = 'puzzles';
 let historyDatabasePromise;
+let copyNoticeTimeout;
 
 function t(key, values = {}) {
   const template = translations[state.language]?.[key] ?? translations['zh-CN'][key] ?? key;
@@ -670,6 +671,17 @@ function showNotice(key, type = 'success', values = {}) {
   notice.className = key ? `notice ${type}` : 'notice hidden';
 }
 
+function showCopyNotice(key, type) {
+  const notice = $('#puzzle-copy-notice');
+  window.clearTimeout(copyNoticeTimeout);
+  notice.textContent = t(key);
+  notice.className = `notice ${type} puzzle-copy-notice`;
+  copyNoticeTimeout = window.setTimeout(() => {
+    notice.textContent = '';
+    notice.className = 'notice hidden puzzle-copy-notice';
+  }, 2400);
+}
+
 async function copyPuzzleId() {
   if (!state.puzzleId) return;
   try {
@@ -685,11 +697,11 @@ async function copyPuzzleId() {
     const copied = document.execCommand?.('copy') || false;
     temporaryInput.remove();
     if (!copied) {
-      showNotice('copyPuzzleIdFailed', 'error');
+      showCopyNotice('copyPuzzleIdFailed', 'error');
       return;
     }
   }
-  showNotice('copiedPuzzleId', 'success');
+  showCopyNotice('copiedPuzzleId', 'success');
 }
 
 function renderPuzzleQr() {
