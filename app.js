@@ -1003,9 +1003,9 @@ function fitPrintPage(page, content, answers) {
   const columnCount = Math.max(...[...table.rows].map((row) => row.cells.length));
   if (!rowCount || !columnCount) return;
 
-  // A4 with 8 mm margins leaves 194 x 281 mm for the sheet.
-  const pageWidthMm = 194;
-  const pageHeightMm = 281;
+  // A4 with 4 mm margins leaves 202 x 289 mm for the sheet.
+  const pageWidthMm = 202;
+  const pageHeightMm = 289;
   const contentWidthMm = pageWidthMm;
   const headerHeightMm = 24;
   const answerBannerHeightMm = answers ? 14 : 0;
