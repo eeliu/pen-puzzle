@@ -54,10 +54,10 @@ for (const { seed, ...settings } of cases) {
   });
 }
 
-test('version 5 reproduces the reviewed unique puzzle', () => {
-  const id = 'PP2-BQAAAAABABQBABAB2oM';
+test('version 6 reproduces the reviewed unique puzzle', () => {
+  const id = 'PP2-BgAAAAAAAAABABQBABAByHM';
   const current = buildPuzzleFromId(id);
-  assert.equal(current.generatorVersion, 5);
+  assert.equal(current.generatorVersion, 6);
   assert.equal(solveArithmeticPuzzle(current.puzzle).length, 1);
   assert.deepEqual(buildPuzzleFromId(id).puzzle, current.puzzle);
 });

@@ -195,7 +195,7 @@ test('unique generation supports the maximum numeric range and equation count', 
   assert.equal(countSolutions(puzzle), 1);
 });
 
-test('version 5 deduplicates arithmetic families and reproduces layout and blanks', () => {
+test('version 6 deduplicates arithmetic families and reproduces layout and blanks', () => {
   const puzzle = makeArithmeticPuzzle(123456, 30, 24);
   assert.equal(puzzle.expressions.length, 24);
   const keys = puzzle.expressions.map(({ expression }) => arithmeticFamilyKey(expression));

@@ -18,7 +18,7 @@ test('arithmetic puzzle ID preserves seed and all generation rules', () => {
 
   assert.match(puzzleId, /^PP2-/);
   assert.ok(puzzleId.length < 40, `compact math ID was ${puzzleId.length} characters`);
-  assert.deepEqual(decoded, { seed, rules, generatorVersion: 5 });
+  assert.deepEqual(decoded, { seed, rules, generatorVersion: 6 });
 });
 
 test('compact arithmetic IDs preserve rules and remain much shorter', () => {
@@ -29,7 +29,7 @@ test('compact arithmetic IDs preserve rules and remain much shorter', () => {
   };
   const compactId = encodePuzzleId(expected.seed, expected.rules);
   const legacyExpected = { ...expected, generatorVersion: 1 };
-  const compactExpected = { ...expected, generatorVersion: 5 };
+  const compactExpected = { ...expected, generatorVersion: 6 };
 
   assert.deepEqual(decodePuzzleId(legacyId), legacyExpected);
   assert.deepEqual(decodePuzzleId(compactId), compactExpected);
@@ -61,7 +61,7 @@ test('importing an arithmetic puzzle ID builds the same seeded puzzle', () => {
   const expected = buildPuzzleFromRules(seed, rules);
 
   assert.equal(imported.seed, seed);
-  assert.equal(imported.generatorVersion, 5);
+  assert.equal(imported.generatorVersion, 6);
   assert.deepEqual(imported.rules, rules);
   assert.deepEqual(imported.puzzle, expected);
 });
@@ -100,4 +100,17 @@ test('older PP2 IDs reuse seed and rules with the current generator', () => {
     const imported = buildPuzzleFromId(id);
     assert.deepEqual(imported.puzzle, buildPuzzleFromRules(imported.seed, imported.rules));
   }
+});
+
+test('53-bit seeds remain distinct in PP2 IDs and reproduce the same puzzle', () => {
+  const rules = { mode: 'math', max: 20, operators: ['+', '−'], count: 8, difficulty: 'normal' };
+  const firstSeed = 0x1ABCDE1234567;
+  const secondSeed = firstSeed + 1;
+  const firstId = encodePuzzleId(firstSeed, rules);
+  const secondId = encodePuzzleId(secondSeed, rules);
+  assert.notEqual(firstId, secondId);
+  assert.equal(decodePuzzleId(firstId).seed, firstSeed);
+  assert.equal(decodePuzzleId(secondId).seed, secondSeed);
+  assert.deepEqual(buildPuzzleFromId(firstId).puzzle, buildPuzzleFromId(firstId).puzzle);
+  assert.notDeepEqual(buildPuzzleFromId(firstId).puzzle, buildPuzzleFromId(secondId).puzzle);
 });

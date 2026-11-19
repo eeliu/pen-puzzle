@@ -17,7 +17,7 @@ npx serve .
 ## What is included
 
 - Seeded eight-direction arithmetic layouts with addition, subtraction, multiplication, and exact division. Equivalent commutative and inverse equations count as one arithmetic fact.
-- PP2 IDs retain their compact format. New IDs use generator version 5 with page coverage and regional density scoring, comparison of multiple complete layouts, and separate seeded equation, layout, and blank-selection streams; older PP1 and PP2 IDs supply their seed and rules to the current generator rather than preserving their original worksheets.
+- PP2 IDs retain their compact format. New IDs use generator version 6 with 53-bit cryptographic seeds, page coverage and regional density scoring, and separate seeded equation, layout, and blank-selection streams; older PP1 and PP2 IDs supply their seed and rules to the current generator rather than preserving their original worksheets.
 - Custom word lists and clues, intersecting across/down placements, prefilled letters, and explicit feedback for words that could not be placed.
 - Responsive browser layout, local progress persistence, and A4 print styles.
 - No runtime server or account. Answers are available in the browser, so these puzzles are for practice rather than secure exams.

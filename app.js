@@ -674,7 +674,7 @@ function renderPuzzle() {
   $('#meta-difficulty').textContent = puzzle.difficulty ? t(`${puzzle.difficulty}Name`) : t('customList');
   updateTimerDisplay();
   $('#footer-id').textContent = `P&P — ${state.seed.toString(16).toUpperCase()}`;
-  $('#puzzle-id').textContent = state.puzzleId || state.seed.toString(16).toUpperCase().padStart(8, '0');
+  $('#puzzle-id').textContent = state.puzzleId || state.seed.toString(16).toUpperCase().padStart(14, '0');
   $('#copy-puzzle-id').disabled = false;
   $('#toggle-puzzle-qr').disabled = false;
   if (puzzle.kind === 'math' && puzzle.expressions.length < puzzle.requestedCount) {
@@ -742,7 +742,7 @@ function togglePuzzleQr() {
 }
 
 function createPuzzle(seed, rules, preparedPuzzle = null, preservedPuzzleId = null) {
-  state.seed = seed >>> 0;
+  state.seed = seed;
   state.mode = rules.mode;
   state.puzzle = preparedPuzzle || buildPuzzleFromRules(state.seed, rules);
   state.puzzle.userEntries = {};
@@ -958,7 +958,7 @@ function refreshHistoryOptions() {
 }
 
 function historyId(seed) {
-  return Number(seed).toString(16).toUpperCase().padStart(8, '0');
+  return Number(seed).toString(16).toUpperCase().padStart(14, '0');
 }
 
 function persist() {

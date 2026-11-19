@@ -5,19 +5,41 @@ const operators = {
   '÷': (a, b) => b !== 0 && a % b === 0 ? a / b : null,
 };
 
-function seededRandom(seed) {
-  let value = seed >>> 0;
-  return () => {
-    value += 0x6D2B79F5;
-    let t = value;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+function seededRandom(seed, stream = 0) {
+  const low = seed >>> 0;
+  const high = Math.floor(seed / 0x100000000) >>> 0;
+  let a = low ^ stream;
+  let b = high ^ Math.imul(stream ^ 0x9E3779B9, 0x85EBCA6B);
+  let c = low ^ Math.imul(stream ^ 0xC2B2AE35, 0x27D4EB2F);
+  let d = high ^ 0xA5A5A5A5;
+
+  const nextUint32 = () => {
+    const result = (a + b + d) >>> 0;
+    d = (d + 1) >>> 0;
+    a = b ^ (b >>> 9);
+    b = (c + (c << 3)) >>> 0;
+    c = ((c << 21) | (c >>> 11)) >>> 0;
+    c = (c + result) >>> 0;
+    return result;
   };
+
+  for (let index = 0; index < 16; index += 1) nextUint32();
+  return () => nextUint32() / 4294967296;
 }
 
 export function newSeed() {
-  return Math.floor(Math.random() * 0xFFFFFFFF) >>> 0;
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi?.getRandomValues) {
+    const bytes = new Uint8Array(7);
+    cryptoApi.getRandomValues(bytes);
+    bytes[0] &= 0x1F;
+    return bytes.reduce((seed, byte) => seed * 256 + byte, 0);
+  }
+
+  // Older environments still get 53 bits from independent random draws.
+  const upper = Math.floor(Math.random() * 0x200000);
+  const lower = Math.floor(Math.random() * 0x100000000);
+  return upper * 0x100000000 + lower;
 }
 
 function choose(list, random) {
@@ -247,9 +269,9 @@ export function buildWordPuzzle(seed, entries, prefillRatio = 0, showBank = fals
 
 // Separate random streams keep blank selection independent of layout search work.
 function phaseRandom(seed, phase) {
-  let hash = seed >>> 0;
-  for (const character of phase) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
-  return seededRandom(hash >>> 0);
+  let stream = 2166136261;
+  for (const character of phase) stream = Math.imul(stream ^ character.charCodeAt(0), 16777619);
+  return seededRandom(seed, stream >>> 0);
 }
 
 export function arithmeticFamilyKey(expression) {
