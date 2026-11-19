@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildArithmeticPuzzle, buildWordPuzzle, parseWords } from '../puzzle-core.js';
+import { buildPuzzleFromId, buildPuzzleFromRules } from '../puzzle-id.js';
 
 const arithmeticOperators = {
   '+': (left, right) => left + right,
@@ -17,17 +18,13 @@ function coordinateKey(cell) {
   return `${cell.x},${cell.y}`;
 }
 
-test('arithmetic puzzle leaves both a clue and a blank in every equation', () => {
+test('arithmetic puzzle leaves a clue in every equation', () => {
   for (let seed = 1; seed <= 20; seed += 1) {
     const puzzle = makeArithmeticPuzzle(seed);
     assert.ok(puzzle.expressions.length > 1, `seed ${seed} should produce a connected puzzle`);
 
     for (const { cells } of puzzle.expressions) {
       const numericKeys = cells.filter((cell) => cell.numeric).map(coordinateKey);
-      assert.ok(
-        numericKeys.some((key) => puzzle.blankSet.has(key)),
-        `seed ${seed} contains an equation with no blanks: ${cells.map((cell) => cell.token).join(' ')}`,
-      );
       assert.ok(
         numericKeys.some((key) => !puzzle.blankSet.has(key)),
         `seed ${seed} contains an all-blank equation: ${cells.map((cell) => cell.token).join(' ')}`,
@@ -41,7 +38,6 @@ test('hard arithmetic puzzles never produce all-blank equations', () => {
     const puzzle = buildArithmeticPuzzle(seed, 20, Object.keys(arithmeticOperators), 40, 'hard');
     for (const { cells } of puzzle.expressions) {
       const numericKeys = cells.filter((cell) => cell.numeric).map(coordinateKey);
-      assert.ok(numericKeys.some((key) => puzzle.blankSet.has(key)), `seed ${seed} has an equation with no blanks`);
       assert.ok(numericKeys.some((key) => !puzzle.blankSet.has(key)), `seed ${seed} has an all-blank equation`);
     }
   }
@@ -127,4 +123,81 @@ test('word parser removes invalid and duplicate entries', () => {
     { word: 'TREE', clue: 'plant' },
     { word: 'BLUEBIRD', clue: 'bird' },
   ]);
+});
+
+// Independent finite-domain solver: retain all supported equation tuples, then
+// branch on the smallest remaining domain to count complete assignments.
+function countSolutions(puzzle) {
+  const domains = new Map([...puzzle.grid].filter(([, cell]) => cell.numeric)
+    .map(([key, cell]) => [key, puzzle.blankSet.has(key)
+      ? Array.from({ length: puzzle.max + 1 }, (_, value) => value) : [cell.token]]));
+  const constraints = puzzle.expressions.map(({ cells, expression }) => {
+    const keys = [0, 2, 4].map((index) => coordinateKey(cells[index]));
+    const tuples = [];
+    for (const left of domains.get(keys[0])) {
+      for (const right of domains.get(keys[1])) {
+        const result = arithmeticOperators[expression[1]](left, right);
+        if (domains.get(keys[2]).includes(result)) tuples.push([left, right, result]);
+      }
+    }
+    return { keys, tuples };
+  });
+  function search(current) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const { keys, tuples } of constraints) {
+        const valid = tuples.filter((tuple) => tuple.every((value, index) => current.get(keys[index]).includes(value)));
+        if (!valid.length) return 0;
+        keys.forEach((key, index) => {
+          const supported = new Set(valid.map((tuple) => tuple[index]));
+          const next = current.get(key).filter((value) => supported.has(value));
+          if (next.length < current.get(key).length) {
+            current.set(key, next);
+            changed = true;
+          }
+        });
+      }
+    }
+    const choice = [...current].filter(([, values]) => values.length > 1)
+      .sort((left, right) => left[1].length - right[1].length)[0];
+    if (!choice) return 1;
+    let total = 0;
+    for (const value of choice[1]) {
+      const branch = new Map(current);
+      branch.set(choice[0], [value]);
+      total += search(branch);
+    }
+    return total;
+  }
+  return search(domains);
+}
+
+test('PP2-AgCbDxBxABQCAAEoAaZB regression: six legacy solutions become one in new generation', () => {
+  const legacy = buildPuzzleFromId('PP2-AgCbDxBxABQCAAEoAaZB');
+  assert.equal(legacy.generatorVersion, 2);
+  assert.equal(legacy.puzzle.blankCount, 32);
+  assert.equal(countSolutions(legacy.puzzle), 6);
+  const fixed = buildPuzzleFromRules(legacy.seed, legacy.rules);
+  assert.equal(countSolutions(fixed), 1);
+  assert.deepEqual(fixed.expressions, legacy.puzzle.expressions);
+  assert.ok(fixed.blankCount > 0);
+  assert.equal(fixed.blankCount, fixed.blankSet.size);
+  assert.deepEqual(fixed, buildPuzzleFromRules(legacy.seed, legacy.rules));
+});
+
+test('new arithmetic puzzles have exactly one solution across operators and difficulties', () => {
+  for (const enabled of [['+'], ['−'], ['×'], ['÷'], Object.keys(arithmeticOperators)]) {
+    for (const difficulty of ['easy', 'normal', 'hard']) {
+      for (let seed = 1; seed <= 12; seed += 1) {
+        const puzzle = buildArithmeticPuzzle(seed, 12, enabled, 16, difficulty);
+        assert.equal(countSolutions(puzzle), 1, `${enabled} ${difficulty} seed ${seed}`);
+      }
+    }
+  }
+});
+
+test('unique generation supports the maximum numeric range and equation count', () => {
+  const puzzle = buildArithmeticPuzzle(42, 500, Object.keys(arithmeticOperators), 40, 'hard');
+  assert.equal(countSolutions(puzzle), 1);
 });

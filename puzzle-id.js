@@ -1,7 +1,7 @@
 import { buildArithmeticPuzzle, buildWordPuzzle } from './puzzle-core.js';
 
 // Increment this when a generator change can alter output for an existing seed.
-export const generatorVersion = 2;
+export const generatorVersion = 3;
 const legacyGeneratorVersion = 1;
 
 const operators = ['+', '−', '×', '÷'];
@@ -175,7 +175,7 @@ function decodeV2(rawId) {
   const generator = data[cursor.offset++];
   const mode = data[cursor.offset++];
   const seed = readUint32(data, cursor);
-  if (generator !== generatorVersion) throw new Error('Unsupported puzzle ID version');
+  if (![2, generatorVersion].includes(generator)) throw new Error('Unsupported puzzle ID version');
 
   if (mode === 0) {
     if (cursor.offset + 4 > data.length) throw new Error('Incomplete puzzle ID data');
