@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildArithmeticPuzzle, buildWordPuzzle, parseWords } from '../puzzle-core.js';
+import { arithmeticFamilyKey, buildArithmeticPuzzle, buildWordPuzzle, parseWords } from '../puzzle-core.js';
 import { buildPuzzleFromId, buildPuzzleFromRules } from '../puzzle-id.js';
 
 const arithmeticOperators = {
@@ -173,17 +173,10 @@ function countSolutions(puzzle) {
   return search(domains);
 }
 
-test('PP2-AgCbDxBxABQCAAEoAaZB regression: six legacy solutions become one in new generation', () => {
-  const legacy = buildPuzzleFromId('PP2-AgCbDxBxABQCAAEoAaZB');
-  assert.equal(legacy.generatorVersion, 2);
-  assert.equal(legacy.puzzle.blankCount, 32);
-  assert.equal(countSolutions(legacy.puzzle), 6);
-  const fixed = buildPuzzleFromRules(legacy.seed, legacy.rules);
-  assert.equal(countSolutions(fixed), 1);
-  assert.deepEqual(fixed.expressions, legacy.puzzle.expressions);
-  assert.ok(fixed.blankCount > 0);
-  assert.equal(fixed.blankCount, fixed.blankSet.size);
-  assert.deepEqual(fixed, buildPuzzleFromRules(legacy.seed, legacy.rules));
+test('imported older puzzle rules generate a uniquely solvable current puzzle', () => {
+  const imported = buildPuzzleFromId('PP2-AgCbDxBxABQCAAEoAaZB');
+  assert.equal(countSolutions(imported.puzzle), 1);
+  assert.deepEqual(imported.puzzle, buildPuzzleFromRules(imported.seed, imported.rules));
 });
 
 test('new arithmetic puzzles have exactly one solution across operators and difficulties', () => {
@@ -200,4 +193,44 @@ test('new arithmetic puzzles have exactly one solution across operators and diff
 test('unique generation supports the maximum numeric range and equation count', () => {
   const puzzle = buildArithmeticPuzzle(42, 500, Object.keys(arithmeticOperators), 40, 'hard');
   assert.equal(countSolutions(puzzle), 1);
+});
+
+test('version 6 deduplicates arithmetic families and reproduces layout and blanks', () => {
+  const puzzle = makeArithmeticPuzzle(123456, 30, 24);
+  assert.equal(puzzle.expressions.length, 24);
+  const keys = puzzle.expressions.map(({ expression }) => arithmeticFamilyKey(expression));
+  assert.equal(new Set(keys).size, keys.length);
+  assert.deepEqual(puzzle, makeArithmeticPuzzle(123456, 30, 24));
+  assert.ok(puzzle.expressions.some(({ cells }) => cells[0].x !== cells[1].x && cells[0].y !== cells[1].y));
+  assert.equal(arithmeticFamilyKey([12, '+', 15, '=', 27]), arithmeticFamilyKey([27, '−', 12, '=', 15]));
+});
+
+test('A4 layouts cover the page with balanced regional density across seeds and sizes', () => {
+  let totalCoverage = 0;
+  let totalUnevenness = 0;
+  let samples = 0;
+  for (let seed = 1; seed <= 20; seed += 1) {
+    for (const count of [6, 16, 40]) {
+      const puzzle = buildArithmeticPuzzle(seed, 20, ['+', '−'], count, 'normal');
+      assert.equal(puzzle.expressions.length, count);
+      const cells = [...puzzle.grid.values()];
+      const width = Math.max(...cells.map((cell) => cell.x)) + 1;
+      const height = Math.max(...cells.map((cell) => cell.y)) + 1;
+      const aspect = width / height;
+      totalCoverage += Math.min(aspect / (202 / 245), (202 / 245) / aspect);
+      const regions = Array(12).fill(0);
+      for (const cell of cells) {
+        const column = Math.min(2, Math.floor(cell.x * 3 / width));
+        const row = Math.min(3, Math.floor(cell.y * 4 / height));
+        regions[row * 3 + column] += 1;
+      }
+      const average = cells.length / regions.length;
+      totalUnevenness += regions.reduce((sum, size) => sum + (size - average) ** 2, 0)
+        / (regions.length * average ** 2);
+      samples += 1;
+    }
+  }
+  // Previous layout scored 0.934 coverage and 0.261 unevenness on this corpus.
+  assert.ok(totalCoverage / samples >= 0.95, `Page coverage: ${totalCoverage / samples}`);
+  assert.ok(totalUnevenness / samples <= 0.19, `Regional unevenness: ${totalUnevenness / samples}`);
 });

@@ -1,7 +1,7 @@
 import { buildArithmeticPuzzle, buildWordPuzzle } from './puzzle-core.js';
 
 // Increment this when a generator change can alter output for an existing seed.
-export const generatorVersion = 3;
+export const generatorVersion = 6;
 const legacyGeneratorVersion = 1;
 
 const operators = ['+', '−', '×', '÷'];
@@ -21,9 +21,15 @@ function fromBase64Url(encoded) {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
-function appendUint32(bytes, value) {
-  const seed = value >>> 0;
-  bytes.push((seed >>> 24) & 0xff, (seed >>> 16) & 0xff, (seed >>> 8) & 0xff, seed & 0xff);
+function appendUint53(bytes, value) {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error('Invalid puzzle seed');
+  let remaining = value;
+  const seedBytes = Array(7);
+  for (let index = seedBytes.length - 1; index >= 0; index -= 1) {
+    seedBytes[index] = remaining % 256;
+    remaining = Math.floor(remaining / 256);
+  }
+  bytes.push(...seedBytes);
 }
 
 function readUint32(bytes, cursor) {
@@ -33,6 +39,14 @@ function readUint32(bytes, cursor) {
     | (bytes[cursor.offset + 2] << 8)
     | bytes[cursor.offset + 3]) >>> 0;
   cursor.offset += 4;
+  return value;
+}
+
+function readUint53(bytes, cursor) {
+  if (cursor.offset + 7 > bytes.length) throw new Error('Incomplete puzzle ID data');
+  let value = 0;
+  for (let index = 0; index < 7; index += 1) value = value * 256 + bytes[cursor.offset++];
+  if (!Number.isSafeInteger(value)) throw new Error('Invalid puzzle seed');
   return value;
 }
 
@@ -112,7 +126,7 @@ function validateWordRules(rules) {
 
 function encodeV2(seed, rules) {
   const bytes = [generatorVersion, rules.mode === 'math' ? 0 : 1];
-  appendUint32(bytes, seed);
+  appendUint53(bytes, seed);
 
   if (rules.mode === 'math') {
     validateMathRules(rules);
@@ -174,8 +188,8 @@ function decodeV2(rawId) {
   const cursor = { offset: 0 };
   const generator = data[cursor.offset++];
   const mode = data[cursor.offset++];
-  const seed = readUint32(data, cursor);
-  if (![2, generatorVersion].includes(generator)) throw new Error('Unsupported puzzle ID version');
+  if (![2, 3, 4, 5, 6].includes(generator)) throw new Error('Unsupported puzzle ID version');
+  const seed = generator >= 6 ? readUint53(data, cursor) : readUint32(data, cursor);
 
   if (mode === 0) {
     if (cursor.offset + 4 > data.length) throw new Error('Incomplete puzzle ID data');
@@ -220,7 +234,8 @@ function decodeV2(rawId) {
 }
 
 export function encodePuzzleId(seed, rules) {
-  return encodeV2(seed >>> 0, rules);
+  if (!Number.isSafeInteger(seed) || seed < 0) throw new Error('Invalid puzzle seed');
+  return encodeV2(seed, rules);
 }
 
 export function decodePuzzleId(rawId) {
@@ -231,9 +246,9 @@ export function decodePuzzleId(rawId) {
   throw new Error('Invalid puzzle ID format');
 }
 
-export function buildPuzzleFromRules(seed, rules, algorithmVersion = generatorVersion) {
+export function buildPuzzleFromRules(seed, rules) {
   if (rules.mode === 'math') {
-    return buildArithmeticPuzzle(seed, rules.max, rules.operators, rules.count, rules.difficulty, algorithmVersion);
+    return buildArithmeticPuzzle(seed, rules.max, rules.operators, rules.count, rules.difficulty);
   }
   if (rules.mode === 'words') {
     return buildWordPuzzle(seed, rules.entries, rules.prefill, rules.showBank);
@@ -243,6 +258,6 @@ export function buildPuzzleFromRules(seed, rules, algorithmVersion = generatorVe
 
 export function buildPuzzleFromId(puzzleId) {
   const decoded = decodePuzzleId(puzzleId);
-  const puzzle = buildPuzzleFromRules(decoded.seed, decoded.rules, decoded.generatorVersion);
+  const puzzle = buildPuzzleFromRules(decoded.seed, decoded.rules);
   return { ...decoded, puzzle };
 }

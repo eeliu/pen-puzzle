@@ -75,7 +75,7 @@ const translations = {
     emptyText:'选择左侧设置，<br />然后点击“生成新谜题”。',
     footerText:'在线解答 · 支持打印',
     tipTitle:'小提示',
-    tipText:'算术谜题中，横向和纵向的表达式会在数字格相交。试试从最容易确定的数字开始。',
+    tipText:'算术谜题中，表达式可沿横向、纵向和斜向在数字格相交，请从算式起点沿运算符到等号的方向阅读。试试从最容易确定的数字开始。',
     privacyTitle:'本地保存',
     privacyText:'题目和进度保存在当前浏览器中，刷新后可以继续。',
     footerNote:'一个轻量、开放的纸笔谜题工坊',
@@ -189,7 +189,7 @@ const translations = {
     emptyText:'Choose settings on the left,<br />then select “Generate puzzle.”',
     footerText:'Solve online · Print ready',
     tipTitle:'Quick tip',
-    tipText:'In math puzzles, horizontal and vertical equations cross at number cells. Start with the numbers you can determine most easily.',
+    tipText:'In math puzzles, horizontal, vertical, and diagonal equations cross at number cells; read from the first operand through the operator to the equals sign. Start with the numbers you can determine most easily.',
     privacyTitle:'Saved locally',
     privacyText:'Puzzles and progress are saved in this browser and restored after refresh.',
     footerNote:'A lightweight, open puzzle workshop',
@@ -303,7 +303,7 @@ const translations = {
     emptyText:'왼쪽에서 설정을 선택한 뒤<br />“새 퍼즐 만들기”를 누르세요.',
     footerText:'온라인 풀이 · 인쇄 가능',
     tipTitle:'간단한 팁',
-    tipText:'산수 퍼즐에서는 가로와 세로 식이 숫자 칸에서 교차합니다. 먼저 쉽게 알 수 있는 숫자부터 풀어 보세요.',
+    tipText:'산수 퍼즐에서는 가로, 세로, 대각선 식이 숫자 칸에서 교차합니다. 첫 숫자에서 연산자와 등호 방향으로 읽으세요. 먼저 쉽게 알 수 있는 숫자부터 풀어 보세요.',
     privacyTitle:'로컬 저장',
     privacyText:'퍼즐과 진행 상황은 이 브라우저에 저장되며 새로고침 후 복원됩니다.',
     footerNote:'가볍고 열린 종이 퍼즐 공방',
@@ -417,7 +417,7 @@ const translations = {
     emptyText:'左側で設定を選び、<br />「新しいパズルを作成」を押してください。',
     footerText:'オンラインで回答 · 印刷可能',
     tipTitle:'ヒント',
-    tipText:'数字パズルでは横と縦の式が数字のマスで交差します。まず分かりやすい数字から考えてみましょう。',
+    tipText:'数字パズルでは横・縦・斜めの式が数字のマスで交差します。最初の数から演算子、等号の順に読んでください。まず分かりやすい数字から考えてみましょう。',
     privacyTitle:'ローカル保存',
     privacyText:'パズルと進捗はこのブラウザーに保存され、更新後も復元されます。',
     footerNote:'軽くてオープンな紙とペンのパズル工房',
@@ -519,6 +519,17 @@ function renderMath(puzzle) {
   const bounds = getGridBounds(puzzle);
   const table = document.createElement('table');
   table.className = 'arithmetic-grid';
+  const equalsAngles = new Map();
+  for (const { cells } of puzzle.expressions) {
+    const start = cells[0];
+    const end = cells[cells.length - 1];
+    // Equals signs have no reading direction, so opposite paths share an angle.
+    const angle = Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI;
+    const normalizedAngle = start.x === end.x ? 0 : ((angle + 90 + 360) % 180) - 90;
+    for (const cell of cells) {
+      if (cell.token === '=') equalsAngles.set(`${cell.x},${cell.y}`, normalizedAngle);
+    }
+  }
   for (let y = bounds.minY; y <= bounds.maxY; y += 1) {
     const row = table.insertRow();
     for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
@@ -526,7 +537,19 @@ function renderMath(puzzle) {
       const key = `${x},${y}`;
       const cell = puzzle.grid.get(key);
       if (!cell) { td.className = 'empty-cell'; continue; }
-      if (!cell.numeric) { td.className = 'operator-cell'; td.textContent = cell.token; continue; }
+      if (!cell.numeric) {
+        td.className = 'operator-cell';
+        if (cell.token === '=') {
+          const symbol = document.createElement('span');
+          symbol.className = 'equation-equals';
+          symbol.textContent = cell.token;
+          symbol.style.setProperty('--equation-angle', `${equalsAngles.get(key) ?? 0}deg`);
+          td.append(symbol);
+        } else {
+          td.textContent = cell.token;
+        }
+        continue;
+      }
       td.className = 'number-cell';
       const answer = String(cell.token);
       if (puzzle.blankSet.has(key)) {
@@ -651,7 +674,7 @@ function renderPuzzle() {
   $('#meta-difficulty').textContent = puzzle.difficulty ? t(`${puzzle.difficulty}Name`) : t('customList');
   updateTimerDisplay();
   $('#footer-id').textContent = `P&P — ${state.seed.toString(16).toUpperCase()}`;
-  $('#puzzle-id').textContent = state.puzzleId || state.seed.toString(16).toUpperCase().padStart(8, '0');
+  $('#puzzle-id').textContent = state.puzzleId || state.seed.toString(16).toUpperCase().padStart(14, '0');
   $('#copy-puzzle-id').disabled = false;
   $('#toggle-puzzle-qr').disabled = false;
   if (puzzle.kind === 'math' && puzzle.expressions.length < puzzle.requestedCount) {
@@ -719,7 +742,7 @@ function togglePuzzleQr() {
 }
 
 function createPuzzle(seed, rules, preparedPuzzle = null, preservedPuzzleId = null) {
-  state.seed = seed >>> 0;
+  state.seed = seed;
   state.mode = rules.mode;
   state.puzzle = preparedPuzzle || buildPuzzleFromRules(state.seed, rules);
   state.puzzle.userEntries = {};
@@ -935,7 +958,7 @@ function refreshHistoryOptions() {
 }
 
 function historyId(seed) {
-  return Number(seed).toString(16).toUpperCase().padStart(8, '0');
+  return Number(seed).toString(16).toUpperCase().padStart(14, '0');
 }
 
 function persist() {
@@ -1118,8 +1141,11 @@ function fitPrintPage(page, content, answers) {
   const contentHeightMm = pageHeightMm - headerHeightMm - answerBannerHeightMm;
   const clueAreaHeightMm = state.puzzle.kind === 'words' ? 74 : 0;
 
+  // Reserve space for the equation note instead of letting the grid consume
+  // the entire content height and push the note outside the printable sheet.
+  const equationNoteHeightMm = state.puzzle.kind === 'math' ? 14 : 0;
   const cellWidthMm = contentWidthMm / columnCount;
-  const availableCellHeightMm = (contentHeightMm - clueAreaHeightMm) / rowCount;
+  const availableCellHeightMm = (contentHeightMm - clueAreaHeightMm - equationNoteHeightMm) / rowCount;
   const cellSizeMm = Math.min(cellWidthMm, availableCellHeightMm);
   page.style.setProperty('--print-cell-size', `${cellSizeMm.toFixed(2)}mm`);
   page.classList.toggle('print-word-page', state.puzzle.kind === 'words');
