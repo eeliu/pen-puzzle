@@ -108,7 +108,42 @@ function canPlace(cells, direction, grid, directionsByCell) {
   return intersectionKeys.size;
 }
 
-export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty, algorithmVersion = 2) {
+// Every blank must follow uniquely from known numbers. If deduction stalls,
+// expose an unresolved number. This constructive proof has no search timeout.
+function ensureUniqueArithmeticSolution(expressions, grid, blankSet, max) {
+  const equations = expressions.map(({ cells, expression }) => ({
+    keys: [0, 2, 4].map((index) => `${cells[index].x},${cells[index].y}`),
+    operator: expression[1],
+  }));
+  const known = new Map([...grid]
+    .filter(([key, cell]) => cell.numeric && !blankSet.has(key))
+    .map(([key, cell]) => [key, cell.token]));
+  const unresolved = new Set(blankSet);
+  while (unresolved.size) {
+    let progress = false;
+    for (const { keys, operator } of equations) {
+      const missing = keys.filter((key) => !known.has(key));
+      if (missing.length !== 1) continue;
+      const unknown = missing[0];
+      const possibilities = [];
+      for (let value = 0; value <= max; value += 1) {
+        const [left, right, result] = keys.map((key) => key === unknown ? value : known.get(key));
+        if (operators[operator](left, right) === result) possibilities.push(value);
+      }
+      if (possibilities.length !== 1) continue;
+      known.set(unknown, possibilities[0]);
+      unresolved.delete(unknown);
+      progress = true;
+    }
+    if (progress) continue;
+    const key = unresolved.values().next().value;
+    blankSet.delete(key);
+    known.set(key, grid.get(key).token);
+    unresolved.delete(key);
+  }
+}
+
+export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty, algorithmVersion = 3) {
   const random = seededRandom(seed);
   const candidates = arithmeticCandidates(max, enabled, random);
   const grid = new Map();
@@ -268,7 +303,7 @@ export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty, alg
       [remainingKeys[i], remainingKeys[j]] = [remainingKeys[j], remainingKeys[i]];
     }
     while (blankSet.size < targetBlankCount && remainingKeys.length) blankSet.add(remainingKeys.pop());
-  } else if (algorithmVersion === 2) {
+  } else if (algorithmVersion === 2 || algorithmVersion === 3) {
     const numericKeysByEquation = expressions.map((placedExpression) => placedExpression.cells
       .filter((cell) => cell.numeric)
       .map((cell) => `${cell.x},${cell.y}`));
@@ -322,6 +357,8 @@ export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty, alg
   } else {
     throw new Error(`Unsupported arithmetic generator version: ${algorithmVersion}`);
   }
+
+  if (algorithmVersion === 3) ensureUniqueArithmeticSolution(expressions, grid, blankSet, max);
 
   const blankCount = blankSet.size;
   return { kind: 'math', grid, expressions, blankSet, blankCount, targetBlankCount, max, difficulty, requestedCount: count };

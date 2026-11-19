@@ -23,6 +23,6 @@ npx serve .
 
 ## Current limits
 
-Puzzle generation is bounded and best-effort. Arithmetic expressions are checked for valid operands/results and exact division, but the current release does not run a constraint solver to prove that each generated puzzle has exactly one solution. Word clues are user-provided and can be ambiguous. Browser print-dialog scaling and headers/footers can affect the physical result.
+Layout generation is bounded and best-effort. New arithmetic puzzles have exactly one solution over integers in the selected range: clues are added until every blank can be uniquely deduced. This may reduce blanks below the difficulty target or fully reveal some equations. Legacy generator versions 1 and 2 preserve their original puzzles and may have multiple solutions. Word clues are user-provided and can be ambiguous. Browser print-dialog scaling and headers/footers can affect the physical result.
 
 The repository is licensed under the MIT License.
