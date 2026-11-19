@@ -1141,8 +1141,11 @@ function fitPrintPage(page, content, answers) {
   const contentHeightMm = pageHeightMm - headerHeightMm - answerBannerHeightMm;
   const clueAreaHeightMm = state.puzzle.kind === 'words' ? 74 : 0;
 
+  // Reserve space for the equation note instead of letting the grid consume
+  // the entire content height and push the note outside the printable sheet.
+  const equationNoteHeightMm = state.puzzle.kind === 'math' ? 14 : 0;
   const cellWidthMm = contentWidthMm / columnCount;
-  const availableCellHeightMm = (contentHeightMm - clueAreaHeightMm) / rowCount;
+  const availableCellHeightMm = (contentHeightMm - clueAreaHeightMm - equationNoteHeightMm) / rowCount;
   const cellSizeMm = Math.min(cellWidthMm, availableCellHeightMm);
   page.style.setProperty('--print-cell-size', `${cellSizeMm.toFixed(2)}mm`);
   page.classList.toggle('print-word-page', state.puzzle.kind === 'words');

@@ -18,7 +18,7 @@ test('arithmetic puzzle ID preserves seed and all generation rules', () => {
 
   assert.match(puzzleId, /^PP2-/);
   assert.ok(puzzleId.length < 40, `compact math ID was ${puzzleId.length} characters`);
-  assert.deepEqual(decoded, { seed, rules, generatorVersion: 4 });
+  assert.deepEqual(decoded, { seed, rules, generatorVersion: 5 });
 });
 
 test('compact arithmetic IDs preserve rules and remain much shorter', () => {
@@ -29,7 +29,7 @@ test('compact arithmetic IDs preserve rules and remain much shorter', () => {
   };
   const compactId = encodePuzzleId(expected.seed, expected.rules);
   const legacyExpected = { ...expected, generatorVersion: 1 };
-  const compactExpected = { ...expected, generatorVersion: 4 };
+  const compactExpected = { ...expected, generatorVersion: 5 };
 
   assert.deepEqual(decodePuzzleId(legacyId), legacyExpected);
   assert.deepEqual(decodePuzzleId(compactId), compactExpected);
@@ -61,7 +61,7 @@ test('importing an arithmetic puzzle ID builds the same seeded puzzle', () => {
   const expected = buildPuzzleFromRules(seed, rules);
 
   assert.equal(imported.seed, seed);
-  assert.equal(imported.generatorVersion, 4);
+  assert.equal(imported.generatorVersion, 5);
   assert.deepEqual(imported.rules, rules);
   assert.deepEqual(imported.puzzle, expected);
 });

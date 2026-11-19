@@ -262,6 +262,29 @@ export function arithmeticFamilyKey(expression) {
   return `${additive ? 'sum' : 'product'}:${parts.join(',')}:${op === '+' || op === '×' ? c : a}`;
 }
 
+// Score both page coverage and the distribution of occupied cells. A 3 x 4
+// sampling grid detects empty regions that a bounding-box ratio cannot see.
+function arithmeticLayoutScore(cells) {
+  const minX = Math.min(...cells.map((cell) => cell.x));
+  const minY = Math.min(...cells.map((cell) => cell.y));
+  const width = Math.max(...cells.map((cell) => cell.x)) - minX + 1;
+  const height = Math.max(...cells.map((cell) => cell.y)) - minY + 1;
+  const pageAspect = 202 / 245;
+  const aspect = width / height;
+  const pageCoverage = Math.min(aspect / pageAspect, pageAspect / aspect);
+  const buckets = Array(12).fill(0);
+  for (const cell of cells) {
+    const column = Math.min(2, Math.floor((cell.x - minX) * 3 / width));
+    const row = Math.min(3, Math.floor((cell.y - minY) * 4 / height));
+    buckets[row * 3 + column] += 1;
+  }
+  const average = cells.length / buckets.length;
+  const unevenness = buckets.reduce((total, value) => total + (value - average) ** 2, 0)
+    / (buckets.length * average ** 2);
+  const density = cells.length / (width * height);
+  return pageCoverage * 12 + density * 3 - unevenness * 2;
+}
+
 function buildGraphArithmeticPuzzle(seed, max, enabled, count, difficulty) {
   const equationRandom = phaseRandom(seed, 'equations');
   const layoutRandom = phaseRandom(seed, 'layout');
@@ -276,6 +299,7 @@ function buildGraphArithmeticPuzzle(seed, max, enabled, count, difficulty) {
   const directions = [[1, 0], [0, 1], [1, 1], [1, -1], [-1, 0], [0, -1], [-1, -1], [-1, 1]];
   const keyOf = (cell) => `${cell.x},${cell.y}`;
   let best = [];
+  let bestLayoutScore = -Infinity;
   // Bounded restarts avoid depending on wall-clock timing when reproducing IDs.
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const grid = new Map();
@@ -318,13 +342,8 @@ function buildGraphArithmeticPuzzle(seed, max, enabled, count, difficulty) {
                 const neighbor = `${cell.x + nx},${cell.y + ny}`;
                 return grid.has(neighbor) && !ownKeys.has(neighbor);
               }))) continue;
-              const all = existing.concat(cells);
-              const minX = Math.min(...all.map((cell) => cell.x));
-              const minY = Math.min(...all.map((cell) => cell.y));
-              const width = Math.max(...all.map((cell) => cell.x)) - minX + 1;
-              const height = Math.max(...all.map((cell) => cell.y)) - minY + 1;
-              const score = -Math.max(width / 202, height / 245) * 100
-                - Math.abs(width / height - 202 / 245) * 2 + layoutRandom() * 0.5;
+              const addedCells = cells.filter((cell) => !grid.has(keyOf(cell)));
+              const score = arithmeticLayoutScore(existing.concat(addedCells)) + layoutRandom() * 0.05;
               if (score > bestScore) {
                 bestScore = score;
                 choice = { expression, cells, direction: `${dx},${dy}` };
@@ -338,8 +357,13 @@ function buildGraphArithmeticPuzzle(seed, max, enabled, count, difficulty) {
       if (!choice) break;
       add(choice.expression, choice.cells, choice.direction);
     }
-    if (placed.length > best.length) best = placed;
-    if (best.length === count) break;
+    const layoutScore = arithmeticLayoutScore([...grid.values()]);
+    if (placed.length > best.length || (placed.length === best.length && layoutScore > bestLayoutScore)) {
+      best = placed;
+      bestLayoutScore = layoutScore;
+    }
+    // Compare three complete layouts rather than accepting the first full one.
+    if (best.length === count && attempt >= 2) break;
   }
   const allCells = best.flatMap(({ cells }) => cells);
   const minX = Math.min(...allCells.map((cell) => cell.x));
