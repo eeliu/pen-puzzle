@@ -18,10 +18,10 @@ test('arithmetic puzzle ID preserves seed and all generation rules', () => {
 
   assert.match(puzzleId, /^PP2-/);
   assert.ok(puzzleId.length < 40, `compact math ID was ${puzzleId.length} characters`);
-  assert.deepEqual(decoded, { seed, rules, generatorVersion: 3 });
+  assert.deepEqual(decoded, { seed, rules, generatorVersion: 4 });
 });
 
-test('compact arithmetic IDs preserve the sample data and remain much shorter', () => {
+test('compact arithmetic IDs preserve rules and remain much shorter', () => {
   const legacyId = 'PP1-3407580A-eyJ2IjoxLCJnIjoxLCJtIjoiYSIsIngiOjIwLCJvIjpbIisiLCLiiJIiXSwibiI6NDAsImQiOiJoYXJkIiwicyI6ODcyODk2NTIyfQ';
   const expected = {
     seed: 872896522,
@@ -29,7 +29,7 @@ test('compact arithmetic IDs preserve the sample data and remain much shorter', 
   };
   const compactId = encodePuzzleId(expected.seed, expected.rules);
   const legacyExpected = { ...expected, generatorVersion: 1 };
-  const compactExpected = { ...expected, generatorVersion: 3 };
+  const compactExpected = { ...expected, generatorVersion: 4 };
 
   assert.deepEqual(decodePuzzleId(legacyId), legacyExpected);
   assert.deepEqual(decodePuzzleId(compactId), compactExpected);
@@ -42,7 +42,6 @@ test('compact arithmetic IDs preserve the sample data and remain much shorter', 
     expected.rules.operators,
     expected.rules.count,
     expected.rules.difficulty,
-    1,
   );
   assert.deepEqual(importedLegacy.puzzle, legacyPuzzle);
 });
@@ -62,7 +61,7 @@ test('importing an arithmetic puzzle ID builds the same seeded puzzle', () => {
   const expected = buildPuzzleFromRules(seed, rules);
 
   assert.equal(imported.seed, seed);
-  assert.equal(imported.generatorVersion, 3);
+  assert.equal(imported.generatorVersion, 4);
   assert.deepEqual(imported.rules, rules);
   assert.deepEqual(imported.puzzle, expected);
 });
@@ -94,4 +93,11 @@ test('puzzle ID decoder rejects old, malformed, and tampered identifiers', () =>
   assert.throws(() => decodePuzzleId(validId.replace(/^PP2-/, 'PP3-')));
   const changedCharacter = `${validId.slice(0, 8)}${validId[8] === 'A' ? 'B' : 'A'}${validId.slice(9)}`;
   assert.throws(() => decodePuzzleId(changedCharacter));
+});
+
+test('older PP2 IDs reuse seed and rules with the current generator', () => {
+  for (const id of ['PP2-AgCbDxBxABQCAAEoAaZB', 'PP2-AwAAAAABABQBABAB0b0']) {
+    const imported = buildPuzzleFromId(id);
+    assert.deepEqual(imported.puzzle, buildPuzzleFromRules(imported.seed, imported.rules));
+  }
 });

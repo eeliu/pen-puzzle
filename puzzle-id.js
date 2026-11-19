@@ -1,7 +1,7 @@
 import { buildArithmeticPuzzle, buildWordPuzzle } from './puzzle-core.js';
 
 // Increment this when a generator change can alter output for an existing seed.
-export const generatorVersion = 3;
+export const generatorVersion = 4;
 const legacyGeneratorVersion = 1;
 
 const operators = ['+', '−', '×', '÷'];
@@ -175,7 +175,7 @@ function decodeV2(rawId) {
   const generator = data[cursor.offset++];
   const mode = data[cursor.offset++];
   const seed = readUint32(data, cursor);
-  if (![2, generatorVersion].includes(generator)) throw new Error('Unsupported puzzle ID version');
+  if (![2, 3, 4].includes(generator)) throw new Error('Unsupported puzzle ID version');
 
   if (mode === 0) {
     if (cursor.offset + 4 > data.length) throw new Error('Incomplete puzzle ID data');
@@ -231,9 +231,9 @@ export function decodePuzzleId(rawId) {
   throw new Error('Invalid puzzle ID format');
 }
 
-export function buildPuzzleFromRules(seed, rules, algorithmVersion = generatorVersion) {
+export function buildPuzzleFromRules(seed, rules) {
   if (rules.mode === 'math') {
-    return buildArithmeticPuzzle(seed, rules.max, rules.operators, rules.count, rules.difficulty, algorithmVersion);
+    return buildArithmeticPuzzle(seed, rules.max, rules.operators, rules.count, rules.difficulty);
   }
   if (rules.mode === 'words') {
     return buildWordPuzzle(seed, rules.entries, rules.prefill, rules.showBank);
@@ -243,6 +243,6 @@ export function buildPuzzleFromRules(seed, rules, algorithmVersion = generatorVe
 
 export function buildPuzzleFromId(puzzleId) {
   const decoded = decodePuzzleId(puzzleId);
-  const puzzle = buildPuzzleFromRules(decoded.seed, decoded.rules, decoded.generatorVersion);
+  const puzzle = buildPuzzleFromRules(decoded.seed, decoded.rules);
   return { ...decoded, puzzle };
 }

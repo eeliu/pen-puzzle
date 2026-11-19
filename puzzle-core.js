@@ -64,304 +64,8 @@ function arithmeticCandidates(max, enabled, random) {
   return candidates;
 }
 
-function expressionCells(expression, x, y, direction) {
-  return expression.map((token, index) => ({
-    x: x + (direction === 'across' ? index : 0),
-    y: y + (direction === 'down' ? index : 0),
-    token,
-    numeric: index === 0 || index === 2 || index === 4,
-  }));
-}
-
-function canPlace(cells, direction, grid, directionsByCell) {
-  const cellKeys = new Set(cells.map((cell) => `${cell.x},${cell.y}`));
-  const intersectionKeys = new Set();
-  const perpendicularDirection = direction === 'across' ? 'down' : 'across';
-
-  for (const cell of cells) {
-    const key = `${cell.x},${cell.y}`;
-    const existing = grid.get(key);
-    if (existing) {
-      const existingDirections = directionsByCell.get(key);
-      if (!cell.numeric || !existing.numeric || String(cell.token) !== String(existing.token)) return null;
-      if (existingDirections?.has(direction)) return null;
-      intersectionKeys.add(key);
-    }
-  }
-
-  if (!intersectionKeys.size) return null;
-
-  for (const cell of cells) {
-    const key = `${cell.x},${cell.y}`;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const neighborKey = `${cell.x + dx},${cell.y + dy}`;
-      if (cellKeys.has(neighborKey) || !grid.has(neighborKey)) continue;
-
-      const neighborDirections = directionsByCell.get(neighborKey);
-      const isExpectedCrossing = intersectionKeys.has(key)
-        && neighborDirections?.has(perpendicularDirection)
-        && !neighborDirections.has(direction);
-      if (!isExpectedCrossing) return null;
-    }
-  }
-
-  return intersectionKeys.size;
-}
-
-// Every blank must follow uniquely from known numbers. If deduction stalls,
-// expose an unresolved number. This constructive proof has no search timeout.
-function ensureUniqueArithmeticSolution(expressions, grid, blankSet, max) {
-  const equations = expressions.map(({ cells, expression }) => ({
-    keys: [0, 2, 4].map((index) => `${cells[index].x},${cells[index].y}`),
-    operator: expression[1],
-  }));
-  const known = new Map([...grid]
-    .filter(([key, cell]) => cell.numeric && !blankSet.has(key))
-    .map(([key, cell]) => [key, cell.token]));
-  const unresolved = new Set(blankSet);
-  while (unresolved.size) {
-    let progress = false;
-    for (const { keys, operator } of equations) {
-      const missing = keys.filter((key) => !known.has(key));
-      if (missing.length !== 1) continue;
-      const unknown = missing[0];
-      const possibilities = [];
-      for (let value = 0; value <= max; value += 1) {
-        const [left, right, result] = keys.map((key) => key === unknown ? value : known.get(key));
-        if (operators[operator](left, right) === result) possibilities.push(value);
-      }
-      if (possibilities.length !== 1) continue;
-      known.set(unknown, possibilities[0]);
-      unresolved.delete(unknown);
-      progress = true;
-    }
-    if (progress) continue;
-    const key = unresolved.values().next().value;
-    blankSet.delete(key);
-    known.set(key, grid.get(key).token);
-    unresolved.delete(key);
-  }
-}
-
-export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty, algorithmVersion = 3) {
-  const random = seededRandom(seed);
-  const candidates = arithmeticCandidates(max, enabled, random);
-  const grid = new Map();
-  const directionsByCell = new Map();
-  const anchorsByValue = new Map();
-  let expressions = [];
-
-  const addExpression = (expression, cells, direction) => {
-    cells.forEach((cell) => {
-      const key = `${cell.x},${cell.y}`;
-      grid.set(key, cell);
-      if (!directionsByCell.has(key)) directionsByCell.set(key, new Set());
-      directionsByCell.get(key).add(direction);
-      if (!cell.numeric) return;
-
-      const value = String(cell.token);
-      if (!anchorsByValue.has(value)) anchorsByValue.set(value, []);
-      const anchors = anchorsByValue.get(value);
-      if (!anchors.some((anchor) => anchor.key === key)) anchors.push({ key, x: cell.x, y: cell.y });
-    });
-    expressions.push({ expression, cells, direction });
-  };
-
-  for (const expression of candidates) {
-    if (!expressions.length) {
-      // Center the first equation so the rest of the structure can grow outwards.
-      const cells = expressionCells(expression, -2, 0, 'across');
-      addExpression(expression, cells, 'across');
-      continue;
-    }
-    if (expressions.length >= count) break;
-
-    const possible = [];
-    for (const numberIndex of [0, 2, 4]) {
-      const token = String(expression[numberIndex]);
-      const anchors = anchorsByValue.get(token) || [];
-      for (const anchor of anchors) {
-        for (const direction of ['across', 'down']) {
-          const x = anchor.x - (direction === 'across' ? numberIndex : 0);
-          const y = anchor.y - (direction === 'down' ? numberIndex : 0);
-          const cells = expressionCells(expression, x, y, direction);
-          const intersections = canPlace(cells, direction, grid, directionsByCell);
-          if (intersections) possible.push({ cells, direction, intersections });
-        }
-      }
-    }
-    if (!possible.length) continue;
-
-    const existingCells = [...grid.values()];
-    const minX = Math.min(...existingCells.map((cell) => cell.x));
-    const maxX = Math.max(...existingCells.map((cell) => cell.x));
-    const minY = Math.min(...existingCells.map((cell) => cell.y));
-    const maxY = Math.max(...existingCells.map((cell) => cell.y));
-    let placement = null;
-    let bestScore = -Infinity;
-    for (const candidate of possible) {
-      const candidateMinX = Math.min(minX, ...candidate.cells.map((cell) => cell.x));
-      const candidateMaxX = Math.max(maxX, ...candidate.cells.map((cell) => cell.x));
-      const candidateMinY = Math.min(minY, ...candidate.cells.map((cell) => cell.y));
-      const candidateMaxY = Math.max(maxY, ...candidate.cells.map((cell) => cell.y));
-      const width = candidateMaxX - candidateMinX + 1;
-      const height = candidateMaxY - candidateMinY + 1;
-      const progress = Math.sqrt((expressions.length + 1) / count);
-      const targetWidth = 5 + 15 * progress;
-      const targetHeight = 1 + 28 * progress;
-      const sizePenalty = Math.abs(width - targetWidth) + Math.abs(height - targetHeight);
-      const centerPenalty = Math.abs(candidateMinX + candidateMaxX) + Math.abs(candidateMinY + candidateMaxY);
-      const aspectPenalty = Math.abs(width / height - (186 / 273)) * Math.max(width, height);
-      const score = candidate.intersections * 2
-        - Math.max(0, candidate.intersections - 1) * 4
-        - sizePenalty * 4
-        - aspectPenalty * 5
-        - centerPenalty * 0.4
-        + random() * 0.1;
-      if (score > bestScore) {
-        bestScore = score;
-        placement = candidate;
-      }
-    }
-    addExpression(expression, placement.cells, placement.direction);
-  }
-
-  // Keep the equation coordinates as a separate layout before filling its cells.
-  const layoutSlots = expressions.map((placed) => ({
-    x: placed.cells[0].x,
-    y: placed.cells[0].y,
-    direction: placed.direction,
-    equationKey: placed.expression.join('|'),
-  }));
-  const equationsByKey = new Map(candidates.map((expression) => [expression.join('|'), expression]));
-  expressions = layoutSlots.map((slot) => {
-    const expression = equationsByKey.get(slot.equationKey);
-    return {
-      expression,
-      cells: expressionCells(expression, slot.x, slot.y, slot.direction),
-      direction: slot.direction,
-    };
-  });
-
-  // Fill the fixed structure, then translate it to positive grid coordinates.
-  const plannedCells = expressions.flatMap((placed) => placed.cells);
-  const minX = Math.min(...plannedCells.map((cell) => cell.x));
-  const minY = Math.min(...plannedCells.map((cell) => cell.y));
-  grid.clear();
-  directionsByCell.clear();
-  const normalizedExpressions = expressions.map((placed) => ({
-    ...placed,
-    cells: placed.cells.map((cell) => ({ ...cell, x: cell.x - minX, y: cell.y - minY })),
-  }));
-  const width = Math.max(...normalizedExpressions.flatMap((placed) => placed.cells.map((cell) => cell.x))) + 1;
-  const height = Math.max(...normalizedExpressions.flatMap((placed) => placed.cells.map((cell) => cell.y))) + 1;
-  const transposeForPortrait = width > height;
-  expressions = normalizedExpressions.map((placed) => ({
-    ...placed,
-    direction: transposeForPortrait
-      ? (placed.direction === 'across' ? 'down' : 'across')
-      : placed.direction,
-    cells: transposeForPortrait
-      ? placed.cells.map((cell) => ({ ...cell, x: cell.y, y: cell.x }))
-      : placed.cells,
-  }));
-
-  expressions.forEach((placed) => {
-    placed.cells.forEach((cell) => {
-      const key = `${cell.x},${cell.y}`;
-      grid.set(key, cell);
-      if (!directionsByCell.has(key)) directionsByCell.set(key, new Set());
-      directionsByCell.get(key).add(placed.direction);
-    });
-  });
-
-  const numericCells = [...grid.values()].filter((cell) => cell.numeric && grid.get(`${cell.x},${cell.y}`) === cell);
-  const ratio = { easy: 0.25, normal: 0.4, hard: 0.55 }[difficulty];
-  const targetBlankCount = Math.max(1, Math.floor(numericCells.length * ratio));
-  const blankSet = new Set();
-  if (algorithmVersion === 1) {
-    const shuffledExpressions = [...expressions];
-    for (let i = shuffledExpressions.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(random() * (i + 1));
-      [shuffledExpressions[i], shuffledExpressions[j]] = [shuffledExpressions[j], shuffledExpressions[i]];
-    }
-
-    // Keep version 1's blank selection so existing PP1 IDs retain their original grids.
-    for (const placedExpression of shuffledExpressions) {
-      const numericKeys = placedExpression.cells
-        .filter((cell) => cell.numeric)
-        .map((cell) => `${cell.x},${cell.y}`);
-      if (numericKeys.some((key) => blankSet.has(key))) continue;
-      blankSet.add(choose(numericKeys, random));
-    }
-
-    const remainingKeys = numericCells
-      .map((cell) => `${cell.x},${cell.y}`)
-      .filter((key) => !blankSet.has(key));
-    for (let i = remainingKeys.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(random() * (i + 1));
-      [remainingKeys[i], remainingKeys[j]] = [remainingKeys[j], remainingKeys[i]];
-    }
-    while (blankSet.size < targetBlankCount && remainingKeys.length) blankSet.add(remainingKeys.pop());
-  } else if (algorithmVersion === 2 || algorithmVersion === 3) {
-    const numericKeysByEquation = expressions.map((placedExpression) => placedExpression.cells
-      .filter((cell) => cell.numeric)
-      .map((cell) => `${cell.x},${cell.y}`));
-    const equationsByNumericKey = new Map();
-    numericKeysByEquation.forEach((keys, equationIndex) => {
-      for (const key of keys) {
-        if (!equationsByNumericKey.has(key)) equationsByNumericKey.set(key, []);
-        equationsByNumericKey.get(key).push(equationIndex);
-      }
-    });
-    const blankCounts = numericKeysByEquation.map(() => 0);
-    const changeBlank = (key, add) => {
-      if (add) blankSet.add(key);
-      else blankSet.delete(key);
-      for (const equationIndex of equationsByNumericKey.get(key) || []) {
-        blankCounts[equationIndex] += add ? 1 : -1;
-      }
-    };
-
-    // Alternating positions along each equation guarantee both a clue and a blank.
-    const blankParity = Math.floor(random() * 2);
-    for (const cell of numericCells) {
-      const key = `${cell.x},${cell.y}`;
-      const parity = (Math.floor(cell.x / 2) + Math.floor(cell.y / 2)) % 2;
-      if (parity === blankParity) changeBlank(key, true);
-    }
-
-    const shuffledNumericKeys = numericCells.map((cell) => `${cell.x},${cell.y}`);
-    for (let i = shuffledNumericKeys.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(random() * (i + 1));
-      [shuffledNumericKeys[i], shuffledNumericKeys[j]] = [shuffledNumericKeys[j], shuffledNumericKeys[i]];
-    }
-
-    // Adjust toward difficulty without making any equation all blank or all given.
-    if (blankSet.size > targetBlankCount) {
-      for (const key of shuffledNumericKeys) {
-        if (blankSet.size <= targetBlankCount) break;
-        const affectedEquations = equationsByNumericKey.get(key) || [];
-        if (affectedEquations.every((index) => blankCounts[index] > 1)) changeBlank(key, false);
-      }
-    } else if (blankSet.size < targetBlankCount) {
-      for (const key of shuffledNumericKeys) {
-        if (blankSet.size >= targetBlankCount) break;
-        if (blankSet.has(key)) continue;
-        const affectedEquations = equationsByNumericKey.get(key) || [];
-        if (affectedEquations.every((index) => blankCounts[index] < numericKeysByEquation[index].length - 1)) {
-          changeBlank(key, true);
-        }
-      }
-    }
-  } else {
-    throw new Error(`Unsupported arithmetic generator version: ${algorithmVersion}`);
-  }
-
-  if (algorithmVersion === 3) ensureUniqueArithmeticSolution(expressions, grid, blankSet, max);
-
-  const blankCount = blankSet.size;
-  return { kind: 'math', grid, expressions, blankSet, blankCount, targetBlankCount, max, difficulty, requestedCount: count };
+export function buildArithmeticPuzzle(seed, max, enabled, count, difficulty) {
+  return buildGraphArithmeticPuzzle(seed, max, enabled, count, difficulty);
 }
 
 export function parseWords(raw) {
@@ -539,4 +243,175 @@ export function buildWordPuzzle(seed, entries, prefillRatio = 0, showBank = fals
     kind: 'words', grid, placed, unplaced, starts, minX, maxX, minY, maxY, graph,
     prefilled, prefillTargetCount, showBank,
   };
+}
+
+// Separate random streams keep blank selection independent of layout search work.
+function phaseRandom(seed, phase) {
+  let hash = seed >>> 0;
+  for (const character of phase) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  return seededRandom(hash >>> 0);
+}
+
+export function arithmeticFamilyKey(expression) {
+  const [a, op, b, , c] = expression;
+  const additive = op === '+' || op === '−';
+  const parts = additive
+    ? (op === '+' ? [a, b] : [b, c])
+    : (op === '×' ? [a, b] : [b, c]);
+  parts.sort((left, right) => left - right);
+  return `${additive ? 'sum' : 'product'}:${parts.join(',')}:${op === '+' || op === '×' ? c : a}`;
+}
+
+function buildGraphArithmeticPuzzle(seed, max, enabled, count, difficulty) {
+  const equationRandom = phaseRandom(seed, 'equations');
+  const layoutRandom = phaseRandom(seed, 'layout');
+  const blankRandom = phaseRandom(seed, 'blanks');
+  const families = new Set();
+  const candidates = arithmeticCandidates(max, enabled, equationRandom).filter((expression) => {
+    const key = arithmeticFamilyKey(expression);
+    if (families.has(key)) return false;
+    families.add(key);
+    return true;
+  });
+  const directions = [[1, 0], [0, 1], [1, 1], [1, -1], [-1, 0], [0, -1], [-1, -1], [-1, 1]];
+  const keyOf = (cell) => `${cell.x},${cell.y}`;
+  let best = [];
+  // Bounded restarts avoid depending on wall-clock timing when reproducing IDs.
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const grid = new Map();
+    const placed = [];
+    const used = new Set();
+    const add = (expression, cells, direction) => {
+      placed.push({ expression, cells, direction });
+      used.add(arithmeticFamilyKey(expression));
+      for (const cell of cells) grid.set(keyOf(cell), cell);
+    };
+    const root = candidates[Math.floor(layoutRandom() * candidates.length)];
+    if (!root) break;
+    add(root, root.map((token, index) => ({ x: index, y: 0, token, numeric: index % 2 === 0 })), '1,0');
+    while (placed.length < count) {
+      const anchors = new Map();
+      for (const cell of grid.values()) {
+        if (!cell.numeric) continue;
+        if (!anchors.has(cell.token)) anchors.set(cell.token, []);
+        anchors.get(cell.token).push(cell);
+      }
+      let choice = null;
+      let bestScore = -Infinity;
+      const existing = [...grid.values()];
+      for (const expression of candidates) {
+        if (used.has(arithmeticFamilyKey(expression))) continue;
+        for (const index of [0, 2, 4]) {
+          for (const anchor of anchors.get(expression[index]) || []) {
+            for (const [dx, dy] of directions) {
+              const cells = expression.map((token, offset) => ({
+                x: anchor.x + (offset - index) * dx,
+                y: anchor.y + (offset - index) * dy,
+                token, numeric: offset % 2 === 0,
+              }));
+              const overlaps = cells.filter((cell) => grid.has(keyOf(cell)));
+              if (overlaps.some((cell) => !cell.numeric || !grid.get(keyOf(cell)).numeric || grid.get(keyOf(cell)).token !== cell.token)) continue;
+              // One shared anchor leaves room to expand and avoids overlapping equations.
+              if (overlaps.length !== 1) continue;
+              const ownKeys = new Set(cells.map(keyOf));
+              if (cells.some((cell) => !cell.numeric && directions.some(([nx, ny]) => {
+                const neighbor = `${cell.x + nx},${cell.y + ny}`;
+                return grid.has(neighbor) && !ownKeys.has(neighbor);
+              }))) continue;
+              const all = existing.concat(cells);
+              const minX = Math.min(...all.map((cell) => cell.x));
+              const minY = Math.min(...all.map((cell) => cell.y));
+              const width = Math.max(...all.map((cell) => cell.x)) - minX + 1;
+              const height = Math.max(...all.map((cell) => cell.y)) - minY + 1;
+              const score = -Math.max(width / 202, height / 245) * 100
+                - Math.abs(width / height - 202 / 245) * 2 + layoutRandom() * 0.5;
+              if (score > bestScore) {
+                bestScore = score;
+                choice = { expression, cells, direction: `${dx},${dy}` };
+              }
+            }
+          }
+        }
+        // Explore enough alternatives without scanning the entire large-range pool.
+        if (choice && layoutRandom() < 0.08) break;
+      }
+      if (!choice) break;
+      add(choice.expression, choice.cells, choice.direction);
+    }
+    if (placed.length > best.length) best = placed;
+    if (best.length === count) break;
+  }
+  const allCells = best.flatMap(({ cells }) => cells);
+  const minX = Math.min(...allCells.map((cell) => cell.x));
+  const minY = Math.min(...allCells.map((cell) => cell.y));
+  const grid = new Map();
+  const expressions = best.map((placed) => ({ ...placed,
+    cells: placed.cells.map((cell) => ({ ...cell, x: cell.x - minX, y: cell.y - minY })),
+  }));
+  for (const { cells } of expressions) for (const cell of cells) grid.set(keyOf(cell), cell);
+  const numericKeys = [...grid.values()].filter((cell) => cell.numeric).map(keyOf);
+  const equations = expressions.map(({ cells }) => cells.filter((cell) => cell.numeric).map(keyOf));
+  const blankSet = new Set();
+  const shuffledKeys = [...numericKeys].sort();
+  for (let i = shuffledKeys.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(blankRandom() * (i + 1));
+    [shuffledKeys[i], shuffledKeys[j]] = [shuffledKeys[j], shuffledKeys[i]];
+  }
+  const priority = new Map(shuffledKeys.map((key, index) => [key, index]));
+  // A full chain of forced single-unknown equations proves uniqueness. Zero
+  // multiplication and zero dividends need explicit domain checks: one unknown
+  // alone does not imply that its value is forced.
+  function canRecoverAllBlanks() {
+    const known = new Map([...grid].filter(([key, cell]) => cell.numeric && !blankSet.has(key))
+      .map(([key, cell]) => [key, Number(cell.token)]));
+    let progress = true;
+    while (progress) {
+      progress = false;
+      for (let index = 0; index < equations.length; index += 1) {
+        const keys = equations[index];
+        const unknown = keys.filter((key) => !known.has(key));
+        if (unknown.length !== 1) continue;
+        const unknownKey = unknown[0];
+        const op = expressions[index].expression[1];
+        let solution;
+        let matches = 0;
+        for (let value = 0; value <= max; value += 1) {
+          const [a, b, c] = keys.map((key) => key === unknownKey ? value : known.get(key));
+          if (operators[op](a, b) !== c) continue;
+          solution = value;
+          if (++matches > 1) break;
+        }
+        if (matches !== 1) continue;
+        known.set(unknownKey, solution);
+        progress = true;
+      }
+    }
+    return numericKeys.every((key) => known.has(key));
+  }
+  const acceptsBlanks = () => canRecoverAllBlanks();
+  // Backtrack over uncovered equations so every equation has a blank and a clue.
+  function coverEquations() {
+    const uncovered = equations.find((keys) => !keys.some((key) => blankSet.has(key)));
+    if (!uncovered) return true;
+    const options = [...uncovered].sort((a, b) => priority.get(a) - priority.get(b));
+    for (const key of options) {
+      const preservesClues = equations.every((keys) => !keys.includes(key)
+        || keys.some((other) => other !== key && !blankSet.has(other)));
+      if (!preservesClues) continue;
+      blankSet.add(key);
+      if (acceptsBlanks() && coverEquations()) return true;
+      blankSet.delete(key);
+    }
+    return false;
+  }
+  if (!coverEquations()) throw new Error('Unable to select valid arithmetic blanks');
+  const targetBlankCount = Math.max(1, Math.floor(numericKeys.length * { easy: 0.25, normal: 0.4, hard: 0.55 }[difficulty]));
+  for (const key of shuffledKeys) {
+    if (blankSet.size >= targetBlankCount) break;
+    if (blankSet.has(key)) continue;
+    if (!equations.every((keys) => !keys.includes(key) || keys.some((other) => other !== key && !blankSet.has(other)))) continue;
+    blankSet.add(key);
+    if (!acceptsBlanks()) blankSet.delete(key);
+  }
+  return { kind: 'math', grid, expressions, blankSet, blankCount: blankSet.size, targetBlankCount, max, difficulty, requestedCount: count };
 }

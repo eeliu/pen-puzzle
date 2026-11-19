@@ -177,3 +177,20 @@ body.print-preview-open .print-watermark{display:none}
   body.print-preview-open .print-sheet .arithmetic-grid td.operator-cell{font-size:clamp(10pt,calc(var(--print-cell-size)*.48),20pt)}
   body.print-preview-open .print-sheet .arithmetic-grid input{font-size:clamp(11pt,calc(var(--print-cell-size)*.65),28pt)}
 }
+
+/* Rotate only the glyph, preserving square grid cells on screen and paper. */
+.arithmetic-grid .equation-equals {
+  display:inline-block;
+  transform:rotate(var(--equation-angle,0deg));
+  transform-origin:center;
+}
+
+/* Dark outlines remain legible on grayscale printers without background ink. */
+.arithmetic-grid td.number-cell {
+  border:1.5px solid #59645b;
+}
+@media print {
+  .print-sheet .arithmetic-grid td.number-cell {
+    border:0.4mm solid #333;
+  }
+}
